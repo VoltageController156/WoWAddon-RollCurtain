@@ -205,6 +205,10 @@ function addon:ResetDefaults()
 		end
 	end
 
+	if self.RefreshSettingsUI then
+		self:RefreshSettingsUI()
+	end
+
 	Print("Settings restored to their defaults.")
 end
 
