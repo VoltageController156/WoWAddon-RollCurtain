@@ -92,15 +92,6 @@ local function AddTooltip(frame, title, tooltip)
 	end)
 end
 
--- Settings.CreateCheckbox uses Blizzard's SettingsCheckboxTemplate. Use that
--- same template in the custom Canvas so stock WoW retains the modern Settings
--- appearance instead of falling back to the older UICheckButton artwork.
---
--- ElvUI normally skins checkboxes created inside Blizzard's vertical Settings
--- list automatically, but Canvas children are not part of that list. If ElvUI
--- is present, opt into its checkbox skin explicitly. This is intentionally
--- optional: stock Blizzard UI and other UI replacements (including Tukui)
--- continue to use the native template without requiring a hard dependency.
 local function ApplyOptionalElvUISkin(checkbox)
 	local elvUI = _G and _G.ElvUI
 	if type(elvUI) ~= "table" then
@@ -124,7 +115,6 @@ local function ApplyOptionalElvUISkin(checkbox)
 		return
 	end
 
-	-- Keep ElvUI completely optional and fail open if its skin API changes.
 	pcall(skins.HandleCheckBox, skins, checkbox)
 end
 
@@ -241,8 +231,9 @@ function addon:RegisterSettings()
 		self.settingsControls[key] = checkbox
 	end
 
+	-- Continue the same 44px cadence as the primary rows when the raid group is collapsed.
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
-	SetCheckboxPosition(raidCheckbox, 24, -292)
+	SetCheckboxPosition(raidCheckbox, 24, -276)
 	self.settingsControls.raidsEnabled = raidCheckbox
 
 	local raidChildX = { 62, 178, 288, 404, 520 }
