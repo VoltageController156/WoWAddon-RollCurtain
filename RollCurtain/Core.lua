@@ -55,6 +55,8 @@ addon.contentLabels = {
 }
 
 local PREFIX = "|cff7dd3fcRoll Curtain:|r "
+local SHOW_ROLL_LINK_TARGET = "rollcurtain:show"
+local SHOW_ROLL_LINK = "|H" .. SHOW_ROLL_LINK_TARGET .. "|h|cff7dd3fc[Show Bonus Roll Prompt]|r|h"
 local eventFrame = CreateFrame("Frame")
 
 local function Print(message)
@@ -133,14 +135,71 @@ function addon:ShouldHideCurrentPrompt()
 	return RollCurtainDB[contentType] == true, contentType
 end
 
+function addon:CanRestoreHiddenBonusRoll()
+	local hidden = self.hiddenBonusRoll
+	local frame = hidden and hidden.frame
+	if not frame or frame ~= BonusRollFrame or frame.state ~= "prompt" then
+		return false
+	end
+
+	if frame:IsShown() then
+		return false
+	end
+
+	if frame.endTime and type(time) == "function" and frame.endTime <= time() then
+		return false
+	end
+
+	return true
+end
+
+function addon:ShowHiddenBonusRoll()
+	if not self:CanRestoreHiddenBonusRoll() then
+		self.hiddenBonusRoll = nil
+		Print("That bonus roll is no longer available.")
+		return false
+	end
+
+	if not GroupLootContainer or type(GroupLootContainer_AddFrame) ~= "function" then
+		Print("The Blizzard loot container is not available yet; the bonus roll could not be restored.")
+		return false
+	end
+
+	local frame = self.hiddenBonusRoll.frame
+
+	-- BonusRollFrame's OnUpdate does not advance while the frame is hidden, so
+	-- synchronize the visual countdown with Blizzard's absolute end time before
+	-- putting the original frame back into the loot container.
+	if frame.endTime and type(time) == "function" then
+		local remaining = math.max(0, frame.endTime - time())
+		frame.remaining = remaining
+
+		local timer = frame.PromptFrame and frame.PromptFrame.Timer
+		if timer and type(timer.SetValue) == "function" then
+			timer:SetValue(remaining)
+		end
+	end
+
+	GroupLootContainer_AddFrame(GroupLootContainer, frame)
+	self.hiddenBonusRoll = nil
+	Print("Bonus-roll prompt restored.")
+	return true
+end
+
 function addon:HideCurrentPromptIfConfigured()
 	if not BonusRollFrame or not BonusRollFrame:IsShown() or BonusRollFrame.state ~= "prompt" then
 		return
 	end
 
-	local shouldHide = self:ShouldHideCurrentPrompt()
+	local shouldHide, contentType = self:ShouldHideCurrentPrompt()
 	if shouldHide and BonusRollFrame_CloseBonusRoll then
+		self.hiddenBonusRoll = {
+			frame = BonusRollFrame,
+			contentType = contentType,
+		}
+
 		BonusRollFrame_CloseBonusRoll()
+		Print("Bonus roll hidden " .. SHOW_ROLL_LINK)
 	end
 end
 
@@ -154,6 +213,20 @@ local function InstallBonusRollHook()
 	end)
 
 	addon.bonusRollHookInstalled = true
+end
+
+local function InstallChatLinkHook()
+	if addon.chatLinkHookInstalled or type(SetItemRef) ~= "function" then
+		return
+	end
+
+	hooksecurefunc("SetItemRef", function(link)
+		if link == SHOW_ROLL_LINK_TARGET then
+			addon:ShowHiddenBonusRoll()
+		end
+	end)
+
+	addon.chatLinkHookInstalled = true
 end
 
 function addon:OpenSettings()
@@ -186,10 +259,12 @@ local function HandleSlashCommand(input)
 		local isHidden = RollCurtainDB[contentType] == true
 		local label = addon.contentLabels[contentType] or addon.contentLabels.unknown
 		Print(string.format("Current content: %s. Bonus-roll prompt: %s.", label, isHidden and "hidden" or "shown"))
+	elseif command == "show" then
+		addon:ShowHiddenBonusRoll()
 	elseif command == "reset" then
 		addon:ResetDefaults()
 	else
-		Print("Commands: /rollcurtain, /rollcurtain status, /rollcurtain reset")
+		Print("Commands: /rollcurtain, /rollcurtain status, /rollcurtain show, /rollcurtain reset")
 	end
 end
 
@@ -205,10 +280,12 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
 			InitializeDatabase()
 			addon:RegisterSettings()
 			InstallBonusRollHook()
+			InstallChatLinkHook()
 		elseif loadedAddonName == "Blizzard_UIPanels_Game" then
 			InstallBonusRollHook()
 		end
 	elseif event == "PLAYER_LOGIN" then
 		InstallBonusRollHook()
+		InstallChatLinkHook()
 	end
 end)
