@@ -1,0 +1,90 @@
+name: Release Roll Curtain
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "RollCurtain/**"
+      - "tests/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read add-on version
+        id: version
+        shell: bash
+        run: |
+          version="$(awk -F': ' '/^## Version:/ { print $2; exit }' RollCurtain/RollCurtain.toc | tr -d '\r')"
+          if [[ -z "$version" ]]; then
+            echo "Unable to read ## Version from RollCurtain.toc" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+
+      - name: Run tests
+        run: lua5.4 tests/test_core.lua
+
+      - name: Package add-on
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          zip -r "RollCurtain-$version.zip" RollCurtain
+
+      - name: Build release notes
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          awk -v version="$version" '
+            $0 == "## " version { capture=1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+
+          if [[ ! -s RELEASE_NOTES.md ]]; then
+            echo "Roll Curtain $version" > RELEASE_NOTES.md
+          fi
+
+      - name: Check for existing GitHub release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          gh release create "$TAG" \
+            "RollCurtain-$VERSION.zip#RollCurtain-$VERSION.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Roll Curtain v$VERSION" \
+            --notes-file RELEASE_NOTES.md

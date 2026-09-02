@@ -24,9 +24,29 @@ local SETTING_DEFINITIONS = {
 		tooltip = "Hide bonus-roll prompts inside five-player dungeon instances. Disabled by default.",
 	},
 	{
-		key = "raids",
-		label = "Raids",
-		tooltip = "Hide bonus-roll prompts inside raid instances. Disabled by default.",
+		key = "raidStory",
+		label = "Raids: Story Mode",
+		tooltip = "Hide bonus-roll prompts in Story Mode raid instances. Disabled by default.",
+	},
+	{
+		key = "raidLFR",
+		label = "Raids: Raid Finder (LFR)",
+		tooltip = "Hide bonus-roll prompts in Raid Finder raid instances. Disabled by default.",
+	},
+	{
+		key = "raidNormal",
+		label = "Raids: Normal",
+		tooltip = "Hide bonus-roll prompts in Normal raid instances. Disabled by default.",
+	},
+	{
+		key = "raidHeroic",
+		label = "Raids: Heroic",
+		tooltip = "Hide bonus-roll prompts in Heroic raid instances. Disabled by default.",
+	},
+	{
+		key = "raidMythic",
+		label = "Raids: Mythic",
+		tooltip = "Hide bonus-roll prompts in Mythic raid instances. Disabled by default.",
 	},
 	{
 		key = "scenarios",

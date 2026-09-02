@@ -1,11 +1,41 @@
 local addonName, addon = ...
 
+local RAID_DIFFICULTY_CONTENT_TYPES = {
+	-- Legacy raid difficulties.
+	[3] = "raidNormal",
+	[4] = "raidNormal",
+	[5] = "raidHeroic",
+	[6] = "raidHeroic",
+	[7] = "raidLFR",
+	[9] = "raidNormal",
+
+	-- Modern raid difficulties.
+	[14] = "raidNormal",
+	[15] = "raidHeroic",
+	[16] = "raidMythic",
+	[17] = "raidLFR",
+	[151] = "raidLFR", -- Timewalking Raid Finder
+	[220] = "raidStory",
+}
+
+local RAID_SETTING_KEYS = {
+	raidStory = true,
+	raidLFR = true,
+	raidNormal = true,
+	raidHeroic = true,
+	raidMythic = true,
+}
+
 addon.defaults = {
 	delves = true,
 	prey = true,
 	world = true,
 	dungeons = false,
-	raids = false,
+	raidStory = false,
+	raidLFR = false,
+	raidNormal = false,
+	raidHeroic = false,
+	raidMythic = false,
 	scenarios = false,
 }
 
@@ -14,7 +44,12 @@ addon.contentLabels = {
 	prey = "Prey hunts",
 	world = "World bosses / outdoor content",
 	dungeons = "Dungeons",
-	raids = "Raids",
+	raidStory = "Story Mode raids",
+	raidLFR = "Raid Finder (LFR)",
+	raidNormal = "Normal raids",
+	raidHeroic = "Heroic raids",
+	raidMythic = "Mythic raids",
+	raids = "Other raid difficulty",
 	scenarios = "Other scenarios",
 	unknown = "Unknown content",
 }
@@ -31,11 +66,22 @@ local function InitializeDatabase()
 		RollCurtainDB = {}
 	end
 
+	-- 0.0.1 had one generic raid toggle. If an existing user upgrades, carry that
+	-- preference into each new raid-difficulty setting unless they already have a
+	-- value for the new key.
+	local legacyRaidValue = type(RollCurtainDB.raids) == "boolean" and RollCurtainDB.raids or nil
+
 	for key, defaultValue in pairs(addon.defaults) do
 		if type(RollCurtainDB[key]) ~= "boolean" then
-			RollCurtainDB[key] = defaultValue
+			if RAID_SETTING_KEYS[key] and legacyRaidValue ~= nil then
+				RollCurtainDB[key] = legacyRaidValue
+			else
+				RollCurtainDB[key] = defaultValue
+			end
 		end
 	end
+
+	RollCurtainDB.raids = nil
 end
 
 local function HasActivePreyHunt()
@@ -68,11 +114,11 @@ function addon:GetCurrentContentType()
 		return "delves"
 	end
 
-	local _, instanceType = GetInstanceInfo()
+	local _, instanceType, difficultyID = GetInstanceInfo()
 	if instanceType == "party" then
 		return "dungeons"
 	elseif instanceType == "raid" then
-		return "raids"
+		return RAID_DIFFICULTY_CONTENT_TYPES[difficultyID] or "raids"
 	elseif instanceType == "scenario" then
 		return "scenarios"
 	elseif instanceType == "none" then

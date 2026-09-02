@@ -1,9 +1,12 @@
 ## Interface: 120100
 ## Title: Roll Curtain
 ## Notes: Hides bonus-roll prompts in the content types you choose.
-## Version: 0.0.1
+## Author: VoltageController156
+## Version: 0.0.2
 ## SavedVariables: RollCurtainDB
 ## X-Category: Loot
+## X-License: MIT
+## X-Website: https://github.com/VoltageController156/WoWAddon-RollCurtain
 
 Core.lua
 Settings.lua

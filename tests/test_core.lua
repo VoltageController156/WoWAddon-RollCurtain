@@ -4,6 +4,7 @@ local bonusRollHook
 local activePreyQuest
 local activeDelve = false
 local instanceType = "none"
+local difficultyID
 local closeCount = 0
 local registeredCheckboxes = 0
 
@@ -53,7 +54,7 @@ C_PartyInfo = {
 }
 
 function GetInstanceInfo()
-	return "Test Instance", instanceType
+	return "Test Instance", instanceType, difficultyID
 end
 
 Settings = {
@@ -87,9 +88,14 @@ assert(RollCurtainDB.delves == true, "Delves should be hidden by default")
 assert(RollCurtainDB.prey == true, "Prey should be hidden by default")
 assert(RollCurtainDB.world == true, "Outdoor prompts should be hidden by default")
 assert(RollCurtainDB.dungeons == false, "Dungeons should remain visible by default")
-assert(RollCurtainDB.raids == false, "Raids should remain visible by default")
+assert(RollCurtainDB.raidStory == false, "Story Mode raids should remain visible by default")
+assert(RollCurtainDB.raidLFR == false, "LFR raids should remain visible by default")
+assert(RollCurtainDB.raidNormal == false, "Normal raids should remain visible by default")
+assert(RollCurtainDB.raidHeroic == false, "Heroic raids should remain visible by default")
+assert(RollCurtainDB.raidMythic == false, "Mythic raids should remain visible by default")
+assert(RollCurtainDB.raids == nil, "Legacy raid setting should not remain in the database")
 assert(RollCurtainDB.scenarios == false, "Other scenarios should remain visible by default")
-assert(registeredCheckboxes == 6, "Expected six settings checkboxes")
+assert(registeredCheckboxes == 10, "Expected ten settings checkboxes")
 assert(bonusRollHook, "Bonus-roll hook was not installed")
 
 activePreyQuest = 12345
@@ -105,7 +111,18 @@ instanceType = "party"
 assert(addon:GetCurrentContentType() == "dungeons", "Dungeon was not detected")
 
 instanceType = "raid"
-assert(addon:GetCurrentContentType() == "raids", "Raid was not detected")
+difficultyID = 220
+assert(addon:GetCurrentContentType() == "raidStory", "Story Mode raid was not detected")
+difficultyID = 17
+assert(addon:GetCurrentContentType() == "raidLFR", "LFR raid was not detected")
+difficultyID = 14
+assert(addon:GetCurrentContentType() == "raidNormal", "Normal raid was not detected")
+difficultyID = 15
+assert(addon:GetCurrentContentType() == "raidHeroic", "Heroic raid was not detected")
+difficultyID = 16
+assert(addon:GetCurrentContentType() == "raidMythic", "Mythic raid was not detected")
+difficultyID = nil
+assert(addon:GetCurrentContentType() == "raids", "Unknown raid difficulty should fail open")
 
 instanceType = "scenario"
 assert(addon:GetCurrentContentType() == "scenarios", "Scenario was not detected")
@@ -128,5 +145,23 @@ assert(closeCount == 1, "Disabled dungeon suppression closed the prompt")
 RollCurtainDB.dungeons = true
 bonusRollHook()
 assert(closeCount == 2, "Enabled dungeon suppression did not close the prompt")
+
+instanceType = "raid"
+difficultyID = 17
+bonusRollHook()
+assert(closeCount == 2, "Disabled LFR suppression closed the prompt")
+
+RollCurtainDB.raidLFR = true
+bonusRollHook()
+assert(closeCount == 3, "Enabled LFR suppression did not close the prompt")
+
+RollCurtainDB = { raids = true, raidMythic = false }
+eventHandler(nil, "ADDON_LOADED", "RollCurtain")
+assert(RollCurtainDB.raidStory == true, "Legacy raid setting was not migrated to Story Mode")
+assert(RollCurtainDB.raidLFR == true, "Legacy raid setting was not migrated to LFR")
+assert(RollCurtainDB.raidNormal == true, "Legacy raid setting was not migrated to Normal")
+assert(RollCurtainDB.raidHeroic == true, "Legacy raid setting was not migrated to Heroic")
+assert(RollCurtainDB.raidMythic == false, "Existing per-difficulty setting was overwritten")
+assert(RollCurtainDB.raids == nil, "Legacy raid setting was not removed after migration")
 
 print("Roll Curtain tests passed")

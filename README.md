@@ -10,7 +10,7 @@ By default, it hides the prompt in:
 - Prey hunts
 - World bosses and other outdoor content
 
-It leaves the prompt visible in dungeons, raids, and other scenarios unless you explicitly enable those options.
+It leaves the prompt visible in dungeons, each raid difficulty, and other scenarios unless you explicitly enable those options.
 
 ## Configuration
 
@@ -36,7 +36,8 @@ Changes apply immediately to the next bonus-roll prompt. Roll Curtain only hides
 - **Delves:** detected through Blizzard's active-Delve APIs.
 - **Prey hunts:** detected through Blizzard's active-Prey-quest API.
 - **World bosses / outdoor content:** any bonus-roll prompt received outside an instance.
-- **Dungeons, raids, and scenarios:** detected from the current instance type.
+- **Dungeons and scenarios:** detected from the current instance type.
+- **Raids:** detected from the current instance type and Blizzard difficulty ID, with separate settings for Story Mode, LFR, Normal, Heroic, and Mythic.
 - **Unknown content:** the prompt remains visible as a safety fallback.
 
 If a Prey hunt is active while you complete a different outdoor encounter, that prompt may be classified as Prey because Blizzard's bonus-roll event does not include a distinct activity type.
