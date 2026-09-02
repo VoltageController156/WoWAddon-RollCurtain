@@ -1,7 +1,5 @@
 local addonName, addon = ...
 
-local SETTING_PREFIX = "ROLL_CURTAIN_HIDE_"
-
 local PRIMARY_SETTING_DEFINITIONS = {
 	{
 		key = "delves",
@@ -21,25 +19,25 @@ local PRIMARY_SETTING_DEFINITIONS = {
 	{
 		key = "dungeons",
 		label = "Dungeons",
-		tooltip = "Hide bonus-roll prompts inside five-player dungeon instances. Disabled by default.",
+		tooltip = "Hide bonus-roll prompts inside five-player dungeon instances.",
 	},
 }
 
 local RAID_PARENT_DEFINITION = {
 	key = "raidsEnabled",
 	label = "Raids",
-	tooltip = "Enable raid-specific bonus-roll suppression. Story Mode is selected by default when Raids is enabled.",
+	tooltip = "Enable raid-specific bonus-roll suppression. Story Mode is selected automatically when Raids is enabled.",
 }
 
 local RAID_SETTING_DEFINITIONS = {
 	{
 		key = "raidStory",
-		label = "Story Mode",
+		label = "Story",
 		tooltip = "Hide bonus-roll prompts in Story Mode raid instances.",
 	},
 	{
 		key = "raidLFR",
-		label = "Raid Finder (LFR)",
+		label = "LFR",
 		tooltip = "Hide bonus-roll prompts in Raid Finder raid instances.",
 	},
 	{
@@ -62,7 +60,7 @@ local RAID_SETTING_DEFINITIONS = {
 local SCENARIO_DEFINITION = {
 	key = "scenarios",
 	label = "Other scenarios",
-	tooltip = "Hide bonus-roll prompts in scenarios that are not detected as Delves. Disabled by default.",
+	tooltip = "Hide bonus-roll prompts in scenarios that are not detected as Delves.",
 }
 
 local function GetMetadata(field, fallback)
@@ -73,101 +71,179 @@ local function GetMetadata(field, fallback)
 	return fallback
 end
 
-local function RegisterCheckbox(addonObject, category, definition)
-	local variable = SETTING_PREFIX .. definition.key:upper()
-	addonObject.settingVariables[definition.key] = variable
+local function AddTooltip(frame, title, tooltip)
+	frame:SetScript("OnEnter", function(self)
+		if not GameTooltip then
+			return
+		end
 
-	local setting = Settings.RegisterAddOnSetting(
-		category,
-		variable,
-		definition.key,
-		RollCurtainDB,
-		Settings.VarType.Boolean,
-		definition.label,
-		addonObject.defaults[definition.key]
-	)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(title)
+		if tooltip and tooltip ~= "" then
+			GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+		end
+		GameTooltip:Show()
+	end)
 
-	local initializer = Settings.CreateCheckbox(category, setting, definition.tooltip)
-	return setting, initializer
+	frame:SetScript("OnLeave", function()
+		if GameTooltip then
+			GameTooltip:Hide()
+		end
+	end)
 end
 
-local function SetSettingValue(addonObject, key, value)
-	local variable = addonObject.settingVariables and addonObject.settingVariables[key]
-	if variable and Settings.SetValue then
-		Settings.SetValue(variable, value)
-	else
-		RollCurtainDB[key] = value
-	end
+local function CreateCheckbox(parent, definition)
+	local checkbox = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+	checkbox:SetSize(26, 26)
+
+	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	label:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+	label:SetText(definition.label)
+
+	checkbox.label = label
+	checkbox.definition = definition
+	AddTooltip(checkbox, definition.label, definition.tooltip)
+	return checkbox
 end
 
-function addon:RegisterSettings()
-	if self.settingsCategory or not Settings then
-		return
-	end
+local function SetCheckboxPosition(checkbox, x, y)
+	checkbox:ClearAllPoints()
+	checkbox:SetPoint("TOPLEFT", x, y)
+end
 
-	local category, layout = Settings.RegisterVerticalLayoutCategory("Roll Curtain")
-
-	if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
-		layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(
-			"Hide the bonus-roll prompt in these activities"
-		))
-	end
-
-	self.settingVariables = {}
-
-	for _, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
-		RegisterCheckbox(self, category, definition)
-	end
-
-	local raidSetting, raidInitializer = RegisterCheckbox(self, category, RAID_PARENT_DEFINITION)
-
+local function SetRaidChildrenVisible(addonObject, visible)
 	for _, definition in ipairs(RAID_SETTING_DEFINITIONS) do
-		local _, childInitializer = RegisterCheckbox(self, category, definition)
-
-		if childInitializer and childInitializer.SetParentInitializer then
-			childInitializer:SetParentInitializer(raidInitializer, function()
-				return raidSetting:GetValue() == true
-			end)
-		end
-
-		if childInitializer and childInitializer.AddShownPredicate then
-			childInitializer:AddShownPredicate(function()
-				return raidSetting:GetValue() == true
-			end)
-		end
-	end
-
-	RegisterCheckbox(self, category, SCENARIO_DEFINITION)
-
-	local function OnRaidsEnabledChanged(_, _, enabled)
-		if enabled then
-			-- Story Mode is the safe/default raid suppression choice when the user
-			-- explicitly enables the raid group. Other difficulties remain opt-in.
-			SetSettingValue(self, "raidStory", true)
-		else
-			for _, definition in ipairs(RAID_SETTING_DEFINITIONS) do
-				SetSettingValue(self, definition.key, false)
+		local checkbox = addonObject.settingsControls[definition.key]
+		if checkbox then
+			if visible then
+				checkbox:Show()
+				checkbox.label:Show()
+			else
+				checkbox:Hide()
+				checkbox.label:Hide()
 			end
 		end
 	end
 
-	local raidVariable = self.settingVariables.raidsEnabled
-	if Settings.SetOnValueChangedCallback then
-		Settings.SetOnValueChangedCallback(raidVariable, OnRaidsEnabledChanged)
-	elseif raidSetting and raidSetting.SetValueChangedCallback then
-		raidSetting:SetValueChangedCallback(function(setting, value)
-			OnRaidsEnabledChanged(nil, setting, value)
+	local scenario = addonObject.settingsControls.scenarios
+	if scenario then
+		SetCheckboxPosition(scenario, 24, visible and -280 or -240)
+	end
+end
+
+local function SetRaidChildren(addonObject, value)
+	for _, definition in ipairs(RAID_SETTING_DEFINITIONS) do
+		RollCurtainDB[definition.key] = value
+		local checkbox = addonObject.settingsControls[definition.key]
+		if checkbox then
+			checkbox:SetChecked(value)
+		end
+	end
+end
+
+function addon:RefreshSettingsUI()
+	if not self.settingsControls then
+		return
+	end
+
+	for key, checkbox in pairs(self.settingsControls) do
+		if RollCurtainDB[key] ~= nil then
+			checkbox:SetChecked(RollCurtainDB[key] == true)
+		end
+	end
+
+	SetRaidChildrenVisible(self, RollCurtainDB.raidsEnabled == true)
+end
+
+function addon:RegisterSettings()
+	if self.settingsCategory or not Settings or not Settings.RegisterCanvasLayoutCategory then
+		return
+	end
+
+	local panel = CreateFrame("Frame")
+	panel:SetSize(650, 430)
+
+	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", 16, -14)
+	title:SetText("Roll Curtain")
+
+	local header = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	header:SetPoint("TOPLEFT", 16, -58)
+	header:SetText("Hide the bonus-roll prompt in these activities")
+
+	local defaultsButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	defaultsButton:SetSize(96, 24)
+	defaultsButton:SetPoint("TOPRIGHT", -18, -12)
+	defaultsButton:SetText("Defaults")
+	defaultsButton:SetScript("OnClick", function()
+		self:ResetDefaults()
+		self:RefreshSettingsUI()
+	end)
+
+	self.settingsControls = {}
+	self.settingVariables = nil
+
+	local primaryY = -92
+	for index, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
+		local checkbox = CreateCheckbox(panel, definition)
+		SetCheckboxPosition(checkbox, 24, primaryY - ((index - 1) * 36))
+		checkbox:SetScript("OnClick", function(button)
+			RollCurtainDB[definition.key] = button:GetChecked() == true
 		end)
+		self.settingsControls[definition.key] = checkbox
 	end
 
-	if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
-		local version = GetMetadata("Version", "Unknown")
-		local author = GetMetadata("Author", "VoltageController156")
-		layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(
-			string.format("Roll Curtain v%s  •  by %s", version, author)
-		))
+	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
+	SetCheckboxPosition(raidCheckbox, 24, -236)
+	self.settingsControls.raidsEnabled = raidCheckbox
+
+	local raidChildX = { 48, 145, 235, 342, 455 }
+	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
+		local checkbox = CreateCheckbox(panel, definition)
+		SetCheckboxPosition(checkbox, raidChildX[index], -270)
+		checkbox:SetScript("OnClick", function(button)
+			RollCurtainDB[definition.key] = button:GetChecked() == true
+		end)
+		self.settingsControls[definition.key] = checkbox
 	end
 
+	raidCheckbox:SetScript("OnClick", function(button)
+		local enabled = button:GetChecked() == true
+		RollCurtainDB.raidsEnabled = enabled
+
+		if enabled then
+			-- Enabling Raids starts with Story Mode selected. Every other raid
+			-- difficulty remains opt-in.
+			SetRaidChildren(self, false)
+			RollCurtainDB.raidStory = true
+			self.settingsControls.raidStory:SetChecked(true)
+		else
+			SetRaidChildren(self, false)
+		end
+
+		SetRaidChildrenVisible(self, enabled)
+	end)
+
+	local scenarioCheckbox = CreateCheckbox(panel, SCENARIO_DEFINITION)
+	self.settingsControls.scenarios = scenarioCheckbox
+	scenarioCheckbox:SetScript("OnClick", function(button)
+		RollCurtainDB.scenarios = button:GetChecked() == true
+	end)
+
+	local version = GetMetadata("Version", "Unknown")
+	local author = GetMetadata("Author", "VoltageController156")
+	local footer = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+	footer:SetPoint("BOTTOMLEFT", 18, 18)
+	footer:SetText(string.format("Version %s  •  Author: %s", version, author))
+
+	panel:SetScript("OnShow", function()
+		self:RefreshSettingsUI()
+	end)
+
+	self.settingsPanel = panel
+	self:RefreshSettingsUI()
+
+	local category = Settings.RegisterCanvasLayoutCategory(panel, "Roll Curtain")
 	Settings.RegisterAddOnCategory(category)
 	self.settingsCategory = category
 end
