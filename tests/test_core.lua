@@ -11,6 +11,7 @@ local restoreCount = 0
 local registeredCheckboxes = 0
 local currentTime = 1000
 local bonusRollShown = true
+local timerValue
 local chatMessages = {}
 
 SlashCmdList = {}
@@ -66,6 +67,14 @@ end
 BonusRollFrame = {
 	state = "prompt",
 	endTime = currentTime + 60,
+	remaining = 60,
+	PromptFrame = {
+		Timer = {
+			SetValue = function(_, value)
+				timerValue = value
+			end,
+		},
+	},
 	IsShown = function() return bonusRollShown end,
 }
 
@@ -73,6 +82,8 @@ local function FireBonusRoll()
 	bonusRollShown = true
 	BonusRollFrame.state = "prompt"
 	BonusRollFrame.endTime = currentTime + 60
+	BonusRollFrame.remaining = 60
+	timerValue = 60
 	bonusRollHook()
 end
 
@@ -174,12 +185,19 @@ FireBonusRoll()
 assert(closeCount == 1, "Enabled Delve suppression did not close the prompt")
 assert(not bonusRollShown, "Suppressed bonus roll should be hidden")
 assert(addon.hiddenBonusRoll, "Suppressed bonus roll was not recorded for recovery")
+assert(chatMessages[#chatMessages]:find("Bonus roll hidden ", 1, true), "Concise hidden-roll message was not printed")
 assert(chatMessages[#chatMessages]:find("Show Bonus Roll Prompt", 1, true), "Recovery chat link was not printed")
+assert(not chatMessages[#chatMessages]:find("hidden in", 1, true), "Hidden-roll message should not include activity context")
 
+-- Time spent hidden still counts down. Restore should synchronize Blizzard's
+-- remaining field and timer before the original frame is re-added.
+currentTime = currentTime + 15
 SlashCmdList.ROLLCURTAIN("show")
 assert(restoreCount == 1, "Slash command did not restore the hidden prompt")
 assert(bonusRollShown, "Restored bonus roll should be visible")
 assert(addon.hiddenBonusRoll == nil, "Recovered bonus roll state was not cleared")
+assert(BonusRollFrame.remaining == 45, "Restored roll did not synchronize its remaining time")
+assert(timerValue == 45, "Restored roll timer did not synchronize its displayed value")
 
 FireBonusRoll()
 assert(closeCount == 2, "Second Delve suppression did not close the prompt")
