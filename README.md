@@ -1,6 +1,6 @@
 # Roll Curtain
 
-![Roll Curtain icon](assets/roll-curtain-icon.png)
+<img src="assets/roll-curtain-icon.png" alt="Roll Curtain icon" width="180">
 
 Roll Curtain is a lightweight World of Warcraft Retail add-on that hides the bonus-roll prompt in the activities you choose.
 
