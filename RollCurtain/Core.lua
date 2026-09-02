@@ -31,6 +31,7 @@ addon.defaults = {
 	prey = true,
 	world = true,
 	dungeons = false,
+	raidsEnabled = false,
 	raidStory = false,
 	raidLFR = false,
 	raidNormal = false,
@@ -68,18 +69,44 @@ local function InitializeDatabase()
 		RollCurtainDB = {}
 	end
 
-	-- 0.0.1 had one generic raid toggle. If an existing user upgrades, carry that
-	-- preference into each new raid-difficulty setting unless they already have a
-	-- value for the new key.
+	-- 0.0.1 had one generic raid toggle. Carry it into the master raid switch and
+	-- per-difficulty settings when upgrading directly from that release.
 	local legacyRaidValue = type(RollCurtainDB.raids) == "boolean" and RollCurtainDB.raids or nil
+
+	-- 0.0.2 introduced per-difficulty raid settings without a master switch. If
+	-- any of those settings were enabled, keep raid suppression enabled when the
+	-- master switch is introduced.
+	local existingRaidChildEnabled = false
+	for key in pairs(RAID_SETTING_KEYS) do
+		if RollCurtainDB[key] == true then
+			existingRaidChildEnabled = true
+			break
+		end
+	end
 
 	for key, defaultValue in pairs(addon.defaults) do
 		if type(RollCurtainDB[key]) ~= "boolean" then
-			if RAID_SETTING_KEYS[key] and legacyRaidValue ~= nil then
+			if key == "raidsEnabled" then
+				if legacyRaidValue ~= nil then
+					RollCurtainDB[key] = legacyRaidValue
+				elseif existingRaidChildEnabled then
+					RollCurtainDB[key] = true
+				else
+					RollCurtainDB[key] = defaultValue
+				end
+			elseif RAID_SETTING_KEYS[key] and legacyRaidValue ~= nil then
 				RollCurtainDB[key] = legacyRaidValue
 			else
 				RollCurtainDB[key] = defaultValue
 			end
+		end
+	end
+
+	-- The master switch owns its children. Keep the saved database internally
+	-- consistent if it is disabled.
+	if not RollCurtainDB.raidsEnabled then
+		for key in pairs(RAID_SETTING_KEYS) do
+			RollCurtainDB[key] = false
 		end
 	end
 
@@ -132,6 +159,10 @@ end
 
 function addon:ShouldHideCurrentPrompt()
 	local contentType = self:GetCurrentContentType()
+	if RAID_SETTING_KEYS[contentType] then
+		return RollCurtainDB.raidsEnabled == true and RollCurtainDB[contentType] == true, contentType
+	end
+
 	return RollCurtainDB[contentType] == true, contentType
 end
 
@@ -247,6 +278,10 @@ function addon:ResetDefaults()
 		end
 	end
 
+	if self.RefreshSettingsUI then
+		self:RefreshSettingsUI()
+	end
+
 	Print("Settings restored to their defaults.")
 end
 
@@ -255,21 +290,22 @@ local function HandleSlashCommand(input)
 	if command == "" or command == "options" or command == "config" then
 		addon:OpenSettings()
 	elseif command == "status" then
-		local contentType = addon:GetCurrentContentType()
-		local isHidden = RollCurtainDB[contentType] == true
+		local shouldHide, contentType = addon:ShouldHideCurrentPrompt()
 		local label = addon.contentLabels[contentType] or addon.contentLabels.unknown
-		Print(string.format("Current content: %s. Bonus-roll prompt: %s.", label, isHidden and "hidden" or "shown"))
+		Print(string.format("Current content: %s. Bonus-roll prompt: %s.", label, shouldHide and "hidden" or "shown"))
 	elseif command == "show" then
 		addon:ShowHiddenBonusRoll()
 	elseif command == "reset" then
 		addon:ResetDefaults()
 	else
-		Print("Commands: /rollcurtain, /rollcurtain status, /rollcurtain show, /rollcurtain reset")
+		Print("Commands: /rollcurtain, /rcurtain, /rollc, /rc; subcommands: status, show, reset")
 	end
 end
 
 SLASH_ROLLCURTAIN1 = "/rollcurtain"
 SLASH_ROLLCURTAIN2 = "/rcurtain"
+SLASH_ROLLCURTAIN3 = "/rc"
+SLASH_ROLLCURTAIN4 = "/rollc"
 SlashCmdList.ROLLCURTAIN = HandleSlashCommand
 
 eventFrame:RegisterEvent("ADDON_LOADED")
