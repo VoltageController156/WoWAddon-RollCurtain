@@ -92,17 +92,53 @@ local function AddTooltip(frame, title, tooltip)
 	end)
 end
 
+-- Settings.CreateCheckbox uses Blizzard's SettingsCheckboxTemplate. Use that
+-- same template in the custom Canvas so stock WoW retains the modern Settings
+-- appearance instead of falling back to the older UICheckButton artwork.
+--
+-- ElvUI normally skins checkboxes created inside Blizzard's vertical Settings
+-- list automatically, but Canvas children are not part of that list. If ElvUI
+-- is present, opt into its checkbox skin explicitly. This is intentionally
+-- optional: stock Blizzard UI and other UI replacements (including Tukui)
+-- continue to use the native template without requiring a hard dependency.
+local function ApplyOptionalElvUISkin(checkbox)
+	local elvUI = _G and _G.ElvUI
+	if type(elvUI) ~= "table" then
+		return
+	end
+
+	local unpackFn = unpack or (table and table.unpack)
+	if not unpackFn then
+		return
+	end
+
+	local ok, engine = pcall(function()
+		return unpackFn(elvUI)
+	end)
+	if not ok or type(engine) ~= "table" or type(engine.GetModule) ~= "function" then
+		return
+	end
+
+	local moduleOK, skins = pcall(engine.GetModule, engine, "Skins", true)
+	if not moduleOK or not skins or type(skins.HandleCheckBox) ~= "function" then
+		return
+	end
+
+	-- Keep ElvUI completely optional and fail open if its skin API changes.
+	pcall(skins.HandleCheckBox, skins, checkbox)
+end
+
 local function CreateCheckbox(parent, definition)
-	local checkbox = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-	checkbox:SetSize(26, 26)
+	local checkbox = CreateFrame("CheckButton", nil, parent, "SettingsCheckboxTemplate")
 
 	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	label:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+	label:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
 	label:SetText(definition.label)
 
 	checkbox.label = label
 	checkbox.definition = definition
 	AddTooltip(checkbox, definition.label, definition.tooltip)
+	ApplyOptionalElvUISkin(checkbox)
 	return checkbox
 end
 
