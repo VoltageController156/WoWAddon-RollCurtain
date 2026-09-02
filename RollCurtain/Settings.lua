@@ -185,12 +185,13 @@ function addon:RegisterSettings()
 
 	local primaryY = -92
 	for index, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
+		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
 		SetCheckboxPosition(checkbox, 24, primaryY - ((index - 1) * 36))
 		checkbox:SetScript("OnClick", function(button)
-			RollCurtainDB[definition.key] = button:GetChecked() == true
+			RollCurtainDB[key] = button:GetChecked() == true
 		end)
-		self.settingsControls[definition.key] = checkbox
+		self.settingsControls[key] = checkbox
 	end
 
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
@@ -199,12 +200,13 @@ function addon:RegisterSettings()
 
 	local raidChildX = { 48, 145, 235, 342, 455 }
 	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
+		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
 		SetCheckboxPosition(checkbox, raidChildX[index], -270)
 		checkbox:SetScript("OnClick", function(button)
-			RollCurtainDB[definition.key] = button:GetChecked() == true
+			RollCurtainDB[key] = button:GetChecked() == true
 		end)
-		self.settingsControls[definition.key] = checkbox
+		self.settingsControls[key] = checkbox
 	end
 
 	raidCheckbox:SetScript("OnClick", function(button)
