@@ -63,14 +63,14 @@ local SCENARIO_DEFINITION = {
 	tooltip = "Hide bonus-roll prompts in scenarios that are not detected as Delves.",
 }
 
--- Canvas coordinates are intentionally tuned for optical spacing with both
--- Blizzard's native Settings checkbox and ElvUI's filled checkbox skin.
--- Primary rows retain the original 44px cadence; the raid group uses slightly
--- tighter parent spacing and a compact nested-row gap so the section reads as
--- one hierarchy instead of three unrelated rows.
+-- Canvas coordinates are tuned for optical spacing with both Blizzard's
+-- native Settings checkbox and ElvUI's filled checkbox skin. The raid parent
+-- is centered visually between Dungeons and Other scenarios in the collapsed
+-- state; when expanded, that same adjustment also pulls the difficulty row
+-- closer to Raids without changing the nested-row spacing itself.
 local PRIMARY_START_Y = -100
 local PRIMARY_ROW_SPACING = 44
-local RAID_PARENT_Y = -272
+local RAID_PARENT_Y = -281
 local RAID_CHILD_Y = -324
 local SCENARIO_COLLAPSED_Y = -316
 local SCENARIO_EXPANDED_Y = -376
