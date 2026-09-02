@@ -6,16 +6,12 @@ local activeDelve = false
 local instanceType = "none"
 local difficultyID
 local closeCount = 0
-local registeredCheckboxes = 0
-local settingsByVariable = {}
-local initializersByKey = {}
-local layoutInitializers = {}
+local createdCheckboxes = {}
+local createdFontStrings = {}
 
 SlashCmdList = {}
 DEFAULT_CHAT_FRAME = { AddMessage = function() end }
-CreateSettingsListSectionHeaderInitializer = function(label)
-	return { label = label }
-end
+UIParent = {}
 
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
@@ -31,15 +27,92 @@ function strtrim(value)
 	return (value:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
-function CreateFrame()
-	return {
-		RegisterEvent = function() end,
-		SetScript = function(_, scriptName, callback)
-			if scriptName == "OnEvent" then
-				eventHandler = callback
-			end
-		end,
+local function NewFontString()
+	local fontString = { shown = true, text = "" }
+
+	function fontString:SetPoint(...)
+		self.point = { ... }
+	end
+
+	function fontString:SetText(text)
+		self.text = text
+	end
+
+	function fontString:Show()
+		self.shown = true
+	end
+
+	function fontString:Hide()
+		self.shown = false
+	end
+
+	table.insert(createdFontStrings, fontString)
+	return fontString
+end
+
+function CreateFrame(frameType)
+	local frame = {
+		frameType = frameType,
+		scripts = {},
+		shown = true,
+		checked = false,
 	}
+
+	function frame:RegisterEvent() end
+
+	function frame:SetScript(scriptName, callback)
+		self.scripts[scriptName] = callback
+		if scriptName == "OnEvent" and not eventHandler then
+			eventHandler = callback
+		end
+	end
+
+	function frame:SetSize(width, height)
+		self.width = width
+		self.height = height
+	end
+
+	function frame:SetPoint(...)
+		self.point = { ... }
+	end
+
+	function frame:ClearAllPoints()
+		self.point = nil
+	end
+
+	function frame:SetText(text)
+		self.text = text
+	end
+
+	function frame:CreateFontString()
+		return NewFontString()
+	end
+
+	function frame:SetChecked(value)
+		self.checked = value == true
+	end
+
+	function frame:GetChecked()
+		return self.checked
+	end
+
+	function frame:Show()
+		self.shown = true
+	end
+
+	function frame:Hide()
+		self.shown = false
+	end
+
+	function frame:IsShown()
+		return self.shown
+	end
+
+	if frameType == "CheckButton" then
+		table.insert(createdCheckboxes, frame)
+	end
+
+	return frame
 end
 
 function hooksecurefunc(_, callback)
@@ -73,70 +146,12 @@ function GetInstanceInfo()
 end
 
 Settings = {
-	VarType = { Boolean = "boolean" },
-	RegisterVerticalLayoutCategory = function()
-		local category = { GetID = function() return 1 end }
-		local layout = {
-			AddInitializer = function(_, initializer)
-				table.insert(layoutInitializers, initializer)
-			end,
-		}
-		return category, layout
-	end,
-	RegisterAddOnSetting = function(_, variable, key, database, _, _, defaultValue)
-		if database[key] == nil then
-			database[key] = defaultValue
-		end
-
-		local setting = {
-			variable = variable,
-			key = key,
-			database = database,
-		}
-
-		function setting:GetValue()
-			return self.database[self.key]
-		end
-
-		function setting:SetValue(value)
-			self.database[self.key] = value
-			if self.callback then
-				self.callback(nil, self, value)
-			end
-		end
-
-		settingsByVariable[variable] = setting
-		return setting
-	end,
-	CreateCheckbox = function(_, setting)
-		registeredCheckboxes = registeredCheckboxes + 1
-		local initializer = { setting = setting }
-
-		function initializer:SetParentInitializer(parentInitializer, predicate)
-			self.parentInitializer = parentInitializer
-			self.parentPredicate = predicate
-		end
-
-		function initializer:AddShownPredicate(predicate)
-			self.shownPredicate = predicate
-		end
-
-		initializersByKey[setting.key] = initializer
-		return initializer
-	end,
-	SetOnValueChangedCallback = function(variable, callback)
-		assert(settingsByVariable[variable], "Unknown settings variable: " .. tostring(variable))
-		settingsByVariable[variable].callback = callback
-	end,
-	SetValue = function(variable, value)
-		assert(settingsByVariable[variable], "Unknown settings variable: " .. tostring(variable))
-		settingsByVariable[variable]:SetValue(value)
-	end,
-	GetSetting = function(variable)
-		return settingsByVariable[variable]
+	RegisterCanvasLayoutCategory = function()
+		return { GetID = function() return 1 end }
 	end,
 	RegisterAddOnCategory = function() end,
 	OpenToCategory = function() end,
+	GetSetting = function() return nil end,
 }
 
 assert(loadfile("RollCurtain/Core.lua"))("RollCurtain", addon)
@@ -157,40 +172,69 @@ assert(RollCurtainDB.raidHeroic == false, "Heroic raids should remain visible by
 assert(RollCurtainDB.raidMythic == false, "Mythic raids should remain visible by default")
 assert(RollCurtainDB.raids == nil, "Legacy raid setting should not remain in the database")
 assert(RollCurtainDB.scenarios == false, "Other scenarios should remain visible by default")
-assert(registeredCheckboxes == 11, "Expected eleven settings checkboxes")
+assert(#createdCheckboxes == 11, "Expected eleven custom settings checkboxes")
 assert(bonusRollHook, "Bonus-roll hook was not installed")
+assert(addon.settingsControls, "Custom settings controls were not created")
 
-local raidParentInitializer = initializersByKey.raidsEnabled
+-- Raid children start hidden when the master switch is disabled.
 for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
-	local initializer = initializersByKey[key]
-	assert(initializer.parentInitializer == raidParentInitializer, key .. " should be nested under Raids")
-	assert(type(initializer.shownPredicate) == "function", key .. " should have a shown predicate")
-	assert(initializer.shownPredicate() == false, key .. " should be hidden while Raids is disabled")
+	assert(addon.settingsControls[key].shown == false, key .. " should be hidden while Raids is disabled")
+	assert(addon.settingsControls[key].label.shown == false, key .. " label should be hidden while Raids is disabled")
 end
+assert(addon.settingsControls.scenarios.point[3] == -240, "Other scenarios should move up while raid children are hidden")
 
-local aboutHeader = layoutInitializers[#layoutInitializers]
-assert(aboutHeader and aboutHeader.label:find("0.0.2", 1, true), "Settings should display the add-on version")
-assert(aboutHeader.label:find("VoltageController156", 1, true), "Settings should display the author")
+-- Version and author are visible somewhere on the custom canvas.
+local foundMetadata = false
+for _, fontString in ipairs(createdFontStrings) do
+	if fontString.text:find("0.0.2", 1, true) and fontString.text:find("VoltageController156", 1, true) then
+		foundMetadata = true
+		break
+	end
+end
+assert(foundMetadata, "Settings should display the add-on version and author")
 
--- Enabling the raid group automatically selects Story Mode only.
-Settings.SetValue(addon.settingVariables.raidsEnabled, true)
+-- Enabling Raids shows a horizontal row and selects Story Mode only.
+local raids = addon.settingsControls.raidsEnabled
+raids:SetChecked(true)
+raids.scripts.OnClick(raids)
 assert(RollCurtainDB.raidsEnabled == true, "Raids master switch was not enabled")
 assert(RollCurtainDB.raidStory == true, "Story Mode should be selected when Raids is enabled")
 assert(RollCurtainDB.raidLFR == false, "LFR should remain opt-in")
 assert(RollCurtainDB.raidNormal == false, "Normal should remain opt-in")
 assert(RollCurtainDB.raidHeroic == false, "Heroic should remain opt-in")
 assert(RollCurtainDB.raidMythic == false, "Mythic should remain opt-in")
-assert(initializersByKey.raidStory.shownPredicate() == true, "Raid children should appear while Raids is enabled")
 
--- Child choices are cleared when the master raid switch is disabled.
-Settings.SetValue(addon.settingVariables.raidLFR, true)
-Settings.SetValue(addon.settingVariables.raidHeroic, true)
-Settings.SetValue(addon.settingVariables.raidsEnabled, false)
+local previousX
+for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
+	local checkbox = addon.settingsControls[key]
+	assert(checkbox.shown == true, key .. " should be visible while Raids is enabled")
+	assert(checkbox.point[3] == -270, key .. " should share the horizontal raid-row Y position")
+	local x = checkbox.point[2]
+	if previousX then
+		assert(x > previousX, "Raid difficulty checkboxes should be laid out left-to-right")
+	end
+	previousX = x
+end
+assert(addon.settingsControls.scenarios.point[3] == -280, "Other scenarios should move down while raid children are visible")
+
+-- Child choices persist while the master remains enabled.
+local lfr = addon.settingsControls.raidLFR
+local heroic = addon.settingsControls.raidHeroic
+lfr:SetChecked(true)
+lfr.scripts.OnClick(lfr)
+heroic:SetChecked(true)
+heroic.scripts.OnClick(heroic)
+assert(RollCurtainDB.raidLFR == true, "LFR checkbox did not update the saved database")
+assert(RollCurtainDB.raidHeroic == true, "Heroic checkbox did not update the saved database")
+
+-- Disabling Raids clears every child and hides the horizontal row.
+raids:SetChecked(false)
+raids.scripts.OnClick(raids)
 assert(RollCurtainDB.raidsEnabled == false, "Raids master switch was not disabled")
 for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
 	assert(RollCurtainDB[key] == false, key .. " should be cleared when Raids is disabled")
+	assert(addon.settingsControls[key].shown == false, key .. " should hide when Raids is disabled")
 end
-assert(initializersByKey.raidStory.shownPredicate() == false, "Raid children should hide while Raids is disabled")
 
 activePreyQuest = 12345
 activeDelve = true
