@@ -188,7 +188,7 @@ for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raid
 	assert(addon.settingsControls[key].shown == false, key .. " should be hidden while Raids is disabled")
 	assert(addon.settingsControls[key].label.shown == false, key .. " label should be hidden while Raids is disabled")
 end
-assert(addon.settingsControls.scenarios.point[3] == -326, "Other scenarios should move up while raid children are hidden")
+assert(addon.settingsControls.scenarios.point[3] == -316, "Other scenarios should move up while raid children are hidden")
 
 -- Version and author are visible somewhere on the custom canvas.
 local foundMetadata = false
@@ -215,14 +215,14 @@ local previousX
 for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
 	local checkbox = addon.settingsControls[key]
 	assert(checkbox.shown == true, key .. " should be visible while Raids is enabled")
-	assert(checkbox.point[3] == -352, key .. " should share the horizontal raid-row Y position")
+	assert(checkbox.point[3] == -324, key .. " should share the horizontal raid-row Y position")
 	local x = checkbox.point[2]
 	if previousX then
 		assert(x > previousX, "Raid difficulty checkboxes should be laid out left-to-right")
 	end
 	previousX = x
 end
-assert(addon.settingsControls.scenarios.point[3] == -418, "Other scenarios should move down while raid children are visible")
+assert(addon.settingsControls.scenarios.point[3] == -376, "Other scenarios should move down while raid children are visible")
 
 -- Child choices persist while the master remains enabled.
 local story = addon.settingsControls.raidStory
@@ -251,7 +251,7 @@ assert(raids:GetChecked() == false, "Raids checkbox should visually auto-deselec
 for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
 	assert(addon.settingsControls[key].shown == false, key .. " should hide when Raids auto-disables")
 end
-assert(addon.settingsControls.scenarios.point[3] == -326, "Other scenarios should move up when Raids auto-disables")
+assert(addon.settingsControls.scenarios.point[3] == -316, "Other scenarios should move up when Raids auto-disables")
 
 -- Re-enabling Raids should once again seed Story Mode, and manually disabling
 -- the parent should clear every child and hide the horizontal row.
