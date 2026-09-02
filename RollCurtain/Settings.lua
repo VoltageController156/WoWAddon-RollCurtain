@@ -127,8 +127,10 @@ local function SetRaidChildrenVisible(addonObject, visible)
 
 	local scenario = addonObject.settingsControls.scenarios
 	if scenario then
-		-- Keep a full row of breathing room beneath the expanded raid options.
-		SetCheckboxPosition(scenario, 24, visible and -360 or -316)
+		-- The expanded raid group intentionally reserves its own full row plus a
+		-- generous separator before Other scenarios. This keeps the child labels
+		-- visually grouped with Raids instead of colliding with the next option.
+		SetCheckboxPosition(scenario, 24, visible and -418 or -326)
 	end
 end
 
@@ -162,7 +164,7 @@ function addon:RegisterSettings()
 	end
 
 	local panel = CreateFrame("Frame")
-	panel:SetSize(650, 480)
+	panel:SetSize(650, 540)
 
 	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 16, -14)
@@ -184,9 +186,8 @@ function addon:RegisterSettings()
 	self.settingsControls = {}
 	self.settingVariables = nil
 
-	-- Slightly taller row spacing keeps the main activity list easy to scan.
-	local primaryY = -96
-	local primaryRowSpacing = 40
+	local primaryY = -100
+	local primaryRowSpacing = 44
 	for index, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
@@ -197,17 +198,18 @@ function addon:RegisterSettings()
 		self.settingsControls[key] = checkbox
 	end
 
+	-- Give the master raid option a distinct gap after the primary activity list.
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
-	SetCheckboxPosition(raidCheckbox, 24, -264)
+	SetCheckboxPosition(raidCheckbox, 24, -292)
 	self.settingsControls.raidsEnabled = raidCheckbox
 
-	-- Spread the difficulty controls across the available width and leave a
-	-- distinct gap between the Raids master row and its child options.
-	local raidChildX = { 58, 168, 268, 378, 488 }
+	-- Keep the child controls on one horizontal line, indented underneath Raids.
+	-- They sit far enough below the master checkbox to read as a separate tier.
+	local raidChildX = { 62, 178, 288, 404, 520 }
 	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, raidChildX[index], -310)
+		SetCheckboxPosition(checkbox, raidChildX[index], -352)
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 		end)
