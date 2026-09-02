@@ -3,7 +3,7 @@ local addonName, addon = ...
 local DEFAULT_ANGLE = 225
 local MINIMAP_RADIUS = 80
 local REFRESH_INTERVAL = 0.5
-local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon"
+local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon.png"
 
 local function GetSavedAngle()
 	if type(RollCurtainDB) == "table" and type(RollCurtainDB.minimapButtonAngle) == "number" then
@@ -108,9 +108,8 @@ function addon:RegisterMinimapButton()
 	button:RegisterForDrag("LeftButton")
 	button:SetClampedToScreen(true)
 
-	-- The minimap artwork is pre-cropped and carries its own circular frame.
-	-- Keeping the button free of Blizzard's oversized tracking border makes it
-	-- render cleanly both on the minimap and inside minimap-button collectors.
+	-- PNG textures must include the file extension when addressed by path.
+	-- The minimap artwork is already cropped to a square, power-of-two texture.
 	local icon = button:CreateTexture(nil, "ARTWORK")
 	icon:SetTexture(ICON_TEXTURE)
 	icon:SetSize(28, 28)
