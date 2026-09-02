@@ -165,7 +165,22 @@ function addon:ShowHiddenBonusRoll()
 		return false
 	end
 
-	GroupLootContainer_AddFrame(GroupLootContainer, self.hiddenBonusRoll.frame)
+	local frame = self.hiddenBonusRoll.frame
+
+	-- BonusRollFrame's OnUpdate does not advance while the frame is hidden, so
+	-- synchronize the visual countdown with Blizzard's absolute end time before
+	-- putting the original frame back into the loot container.
+	if frame.endTime and type(time) == "function" then
+		local remaining = math.max(0, frame.endTime - time())
+		frame.remaining = remaining
+
+		local timer = frame.PromptFrame and frame.PromptFrame.Timer
+		if timer and type(timer.SetValue) == "function" then
+			timer:SetValue(remaining)
+		end
+	end
+
+	GroupLootContainer_AddFrame(GroupLootContainer, frame)
 	self.hiddenBonusRoll = nil
 	Print("Bonus-roll prompt restored.")
 	return true
@@ -184,9 +199,7 @@ function addon:HideCurrentPromptIfConfigured()
 		}
 
 		BonusRollFrame_CloseBonusRoll()
-
-		local label = self.contentLabels[contentType] or self.contentLabels.unknown
-		Print(string.format("Bonus roll hidden in %s. %s", label, SHOW_ROLL_LINK))
+		Print("Bonus roll hidden " .. SHOW_ROLL_LINK)
 	end
 end
 
