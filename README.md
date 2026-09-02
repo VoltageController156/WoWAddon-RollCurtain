@@ -43,3 +43,7 @@ If a Prey hunt is active while you complete a different outdoor encounter, that 
 
 - World of Warcraft Retail 12.1.x
 - Uses the modern Settings panel introduced in Dragonflight and updated for current Retail.
+
+## License
+
+Roll Curtain is available under the [MIT License](LICENSE).
