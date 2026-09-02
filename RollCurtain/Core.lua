@@ -189,12 +189,14 @@ local function HandleSlashCommand(input)
 	elseif command == "reset" then
 		addon:ResetDefaults()
 	else
-		Print("Commands: /rollcurtain, /rollcurtain status, /rollcurtain reset")
+		Print("Commands: /rollcurtain (/rcurtain, /rollc, /rc), /rollcurtain status, /rollcurtain reset")
 	end
 end
 
 SLASH_ROLLCURTAIN1 = "/rollcurtain"
 SLASH_ROLLCURTAIN2 = "/rcurtain"
+SLASH_ROLLCURTAIN3 = "/rollc"
+SLASH_ROLLCURTAIN4 = "/rc"
 SlashCmdList.ROLLCURTAIN = HandleSlashCommand
 
 eventFrame:RegisterEvent("ADDON_LOADED")
