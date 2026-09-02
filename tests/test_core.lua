@@ -1,19 +1,32 @@
 local addon = {}
 local eventHandler
 local bonusRollHook
+local chatLinkHook
 local activePreyQuest
 local activeDelve = false
 local instanceType = "none"
 local difficultyID
 local closeCount = 0
+local restoreCount = 0
 local registeredCheckboxes = 0
+local currentTime = 1000
+local bonusRollShown = true
+local chatMessages = {}
 
 SlashCmdList = {}
-DEFAULT_CHAT_FRAME = { AddMessage = function() end }
+DEFAULT_CHAT_FRAME = {
+	AddMessage = function(_, message)
+		table.insert(chatMessages, message)
+	end,
+}
 CreateSettingsListSectionHeaderInitializer = function() return {} end
 
 function strtrim(value)
 	return (value:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+function time()
+	return currentTime
 end
 
 function CreateFrame()
@@ -27,19 +40,41 @@ function CreateFrame()
 	}
 end
 
-function hooksecurefunc(_, callback)
-	bonusRollHook = callback
+function hooksecurefunc(name, callback)
+	if name == "BonusRollFrame_StartBonusRoll" then
+		bonusRollHook = callback
+	elseif name == "SetItemRef" then
+		chatLinkHook = callback
+	end
 end
 
 function BonusRollFrame_StartBonusRoll() end
 function BonusRollFrame_CloseBonusRoll()
 	closeCount = closeCount + 1
+	bonusRollShown = false
+end
+
+function SetItemRef() end
+
+GroupLootContainer = {}
+function GroupLootContainer_AddFrame(_, frame)
+	restoreCount = restoreCount + 1
+	bonusRollShown = true
+	assert(frame == BonusRollFrame, "Unexpected frame restored")
 end
 
 BonusRollFrame = {
 	state = "prompt",
-	IsShown = function() return true end,
+	endTime = currentTime + 60,
+	IsShown = function() return bonusRollShown end,
 }
+
+local function FireBonusRoll()
+	bonusRollShown = true
+	BonusRollFrame.state = "prompt"
+	BonusRollFrame.endTime = currentTime + 60
+	bonusRollHook()
+end
 
 C_QuestLog = {
 	GetActivePreyQuest = function() return activePreyQuest end,
@@ -97,6 +132,7 @@ assert(RollCurtainDB.raids == nil, "Legacy raid setting should not remain in the
 assert(RollCurtainDB.scenarios == false, "Other scenarios should remain visible by default")
 assert(registeredCheckboxes == 10, "Expected ten settings checkboxes")
 assert(bonusRollHook, "Bonus-roll hook was not installed")
+assert(chatLinkHook, "Chat-link hook was not installed")
 
 activePreyQuest = 12345
 activeDelve = true
@@ -134,26 +170,50 @@ instanceType = "pvp"
 assert(addon:GetCurrentContentType() == "unknown", "Unknown content should fail open")
 
 activeDelve = true
-bonusRollHook()
+FireBonusRoll()
 assert(closeCount == 1, "Enabled Delve suppression did not close the prompt")
+assert(not bonusRollShown, "Suppressed bonus roll should be hidden")
+assert(addon.hiddenBonusRoll, "Suppressed bonus roll was not recorded for recovery")
+assert(chatMessages[#chatMessages]:find("Show Bonus Roll Prompt", 1, true), "Recovery chat link was not printed")
 
+SlashCmdList.ROLLCURTAIN("show")
+assert(restoreCount == 1, "Slash command did not restore the hidden prompt")
+assert(bonusRollShown, "Restored bonus roll should be visible")
+assert(addon.hiddenBonusRoll == nil, "Recovered bonus roll state was not cleared")
+
+FireBonusRoll()
+assert(closeCount == 2, "Second Delve suppression did not close the prompt")
+chatLinkHook("rollcurtain:show")
+assert(restoreCount == 2, "Clickable chat link did not restore the hidden prompt")
+assert(bonusRollShown, "Chat-link recovery should show the bonus roll")
+
+FireBonusRoll()
+assert(closeCount == 3, "Third Delve suppression did not close the prompt")
+currentTime = BonusRollFrame.endTime + 1
+SlashCmdList.ROLLCURTAIN("show")
+assert(restoreCount == 2, "Expired bonus roll should not be restored")
+assert(addon.hiddenBonusRoll == nil, "Expired recovery state was not cleared")
+assert(chatMessages[#chatMessages]:find("no longer available", 1, true), "Expired roll did not report a clean failure")
+
+currentTime = 1000
 activeDelve = false
 instanceType = "party"
-bonusRollHook()
-assert(closeCount == 1, "Disabled dungeon suppression closed the prompt")
+FireBonusRoll()
+assert(closeCount == 3, "Disabled dungeon suppression closed the prompt")
 
 RollCurtainDB.dungeons = true
-bonusRollHook()
-assert(closeCount == 2, "Enabled dungeon suppression did not close the prompt")
+FireBonusRoll()
+assert(closeCount == 4, "Enabled dungeon suppression did not close the prompt")
 
 instanceType = "raid"
 difficultyID = 17
-bonusRollHook()
-assert(closeCount == 2, "Disabled LFR suppression closed the prompt")
+RollCurtainDB.raidLFR = false
+FireBonusRoll()
+assert(closeCount == 4, "Disabled LFR suppression closed the prompt")
 
 RollCurtainDB.raidLFR = true
-bonusRollHook()
-assert(closeCount == 3, "Enabled LFR suppression did not close the prompt")
+FireBonusRoll()
+assert(closeCount == 5, "Enabled LFR suppression did not close the prompt")
 
 RollCurtainDB = { raids = true, raidMythic = false }
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
