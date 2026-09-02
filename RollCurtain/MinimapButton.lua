@@ -3,6 +3,7 @@ local addonName, addon = ...
 local DEFAULT_ANGLE = 225
 local MINIMAP_RADIUS = 80
 local REFRESH_INTERVAL = 0.5
+local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon"
 
 local function GetSavedAngle()
 	if type(RollCurtainDB) == "table" and type(RollCurtainDB.minimapButtonAngle) == "number" then
@@ -113,7 +114,7 @@ function addon:RegisterMinimapButton()
 	background:SetPoint("CENTER")
 
 	local icon = button:CreateTexture(nil, "ARTWORK")
-	icon:SetTexture("Interface\\Icons\\INV_Misc_Dice_01")
+	icon:SetTexture(ICON_TEXTURE)
 	icon:SetSize(20, 20)
 	icon:SetPoint("CENTER")
 	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
