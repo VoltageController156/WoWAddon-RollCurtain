@@ -225,6 +225,7 @@ end
 assert(addon.settingsControls.scenarios.point[3] == -418, "Other scenarios should move down while raid children are visible")
 
 -- Child choices persist while the master remains enabled.
+local story = addon.settingsControls.raidStory
 local lfr = addon.settingsControls.raidLFR
 local heroic = addon.settingsControls.raidHeroic
 lfr:SetChecked(true)
@@ -234,7 +235,33 @@ heroic.scripts.OnClick(heroic)
 assert(RollCurtainDB.raidLFR == true, "LFR checkbox did not update the saved database")
 assert(RollCurtainDB.raidHeroic == true, "Heroic checkbox did not update the saved database")
 
--- Disabling Raids clears every child and hides the horizontal row.
+-- Turning off raid difficulties one by one keeps the parent enabled until the
+-- last selected difficulty is removed. At that point Raids turns itself off
+-- and the child row collapses.
+story:SetChecked(false)
+story.scripts.OnClick(story)
+assert(RollCurtainDB.raidsEnabled == true, "Raids should remain enabled while LFR or Heroic is selected")
+lfr:SetChecked(false)
+lfr.scripts.OnClick(lfr)
+assert(RollCurtainDB.raidsEnabled == true, "Raids should remain enabled while Heroic is selected")
+heroic:SetChecked(false)
+heroic.scripts.OnClick(heroic)
+assert(RollCurtainDB.raidsEnabled == false, "Raids should auto-disable when the last difficulty is deselected")
+assert(raids:GetChecked() == false, "Raids checkbox should visually auto-deselect when no difficulties remain")
+for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
+	assert(addon.settingsControls[key].shown == false, key .. " should hide when Raids auto-disables")
+end
+assert(addon.settingsControls.scenarios.point[3] == -326, "Other scenarios should move up when Raids auto-disables")
+
+-- Re-enabling Raids should once again seed Story Mode, and manually disabling
+-- the parent should clear every child and hide the horizontal row.
+raids:SetChecked(true)
+raids.scripts.OnClick(raids)
+assert(RollCurtainDB.raidStory == true, "Re-enabling Raids should select Story Mode again")
+lfr:SetChecked(true)
+lfr.scripts.OnClick(lfr)
+heroic:SetChecked(true)
+heroic.scripts.OnClick(heroic)
 raids:SetChecked(false)
 raids.scripts.OnClick(raids)
 assert(RollCurtainDB.raidsEnabled == false, "Raids master switch was not disabled")
