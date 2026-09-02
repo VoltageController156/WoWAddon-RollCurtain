@@ -127,7 +127,8 @@ local function SetRaidChildrenVisible(addonObject, visible)
 
 	local scenario = addonObject.settingsControls.scenarios
 	if scenario then
-		SetCheckboxPosition(scenario, 24, visible and -280 or -240)
+		-- Keep a full row of breathing room beneath the expanded raid options.
+		SetCheckboxPosition(scenario, 24, visible and -360 or -316)
 	end
 end
 
@@ -161,7 +162,7 @@ function addon:RegisterSettings()
 	end
 
 	local panel = CreateFrame("Frame")
-	panel:SetSize(650, 430)
+	panel:SetSize(650, 480)
 
 	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 16, -14)
@@ -183,11 +184,13 @@ function addon:RegisterSettings()
 	self.settingsControls = {}
 	self.settingVariables = nil
 
-	local primaryY = -92
+	-- Slightly taller row spacing keeps the main activity list easy to scan.
+	local primaryY = -96
+	local primaryRowSpacing = 40
 	for index, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, 24, primaryY - ((index - 1) * 36))
+		SetCheckboxPosition(checkbox, 24, primaryY - ((index - 1) * primaryRowSpacing))
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 		end)
@@ -195,14 +198,16 @@ function addon:RegisterSettings()
 	end
 
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
-	SetCheckboxPosition(raidCheckbox, 24, -236)
+	SetCheckboxPosition(raidCheckbox, 24, -264)
 	self.settingsControls.raidsEnabled = raidCheckbox
 
-	local raidChildX = { 48, 145, 235, 342, 455 }
+	-- Spread the difficulty controls across the available width and leave a
+	-- distinct gap between the Raids master row and its child options.
+	local raidChildX = { 58, 168, 268, 378, 488 }
 	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, raidChildX[index], -270)
+		SetCheckboxPosition(checkbox, raidChildX[index], -310)
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 		end)
