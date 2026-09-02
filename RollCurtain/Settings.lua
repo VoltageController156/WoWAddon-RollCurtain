@@ -180,6 +180,16 @@ local function SetRaidChildren(addonObject, value)
 	end
 end
 
+local function HasSelectedRaidDifficulty()
+	for _, definition in ipairs(RAID_SETTING_DEFINITIONS) do
+		if RollCurtainDB[definition.key] == true then
+			return true
+		end
+	end
+
+	return false
+end
+
 function addon:RefreshSettingsUI()
 	if not self.settingsControls then
 		return
@@ -248,6 +258,15 @@ function addon:RegisterSettings()
 		SetCheckboxPosition(checkbox, raidChildX[index], -352)
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
+
+			-- A checked Raids parent with no selected child difficulty is not a
+			-- meaningful state. If the player turns off the last selected raid
+			-- difficulty, collapse the group and turn the parent off as well.
+			if not HasSelectedRaidDifficulty() then
+				RollCurtainDB.raidsEnabled = false
+				raidCheckbox:SetChecked(false)
+				SetRaidChildrenVisible(self, false)
+			end
 		end)
 		self.settingsControls[key] = checkbox
 	end
