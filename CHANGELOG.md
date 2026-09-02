@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.4
+
+### Fixed
+
+- Fixed a native World of Warcraft client crash associated with the minimap icon texture shipped in 0.0.3.
+- Re-encoded the minimap die icon as a compatibility-safe RGB PNG while preserving the approved die artwork and minimap button behavior.
+
 ## 0.0.3
 
 ### Added
