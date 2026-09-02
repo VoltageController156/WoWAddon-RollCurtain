@@ -108,27 +108,20 @@ function addon:RegisterMinimapButton()
 	button:RegisterForDrag("LeftButton")
 	button:SetClampedToScreen(true)
 
-	local background = button:CreateTexture(nil, "BACKGROUND")
-	background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-	background:SetSize(24, 24)
-	background:SetPoint("CENTER")
-
+	-- The minimap artwork is pre-cropped and carries its own circular frame.
+	-- Keeping the button free of Blizzard's oversized tracking border makes it
+	-- render cleanly both on the minimap and inside minimap-button collectors.
 	local icon = button:CreateTexture(nil, "ARTWORK")
 	icon:SetTexture(ICON_TEXTURE)
-	icon:SetSize(20, 20)
+	icon:SetSize(28, 28)
 	icon:SetPoint("CENTER")
-	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	icon:SetTexCoord(0, 1, 0, 1)
 	button.icon = icon
-
-	local border = button:CreateTexture(nil, "OVERLAY")
-	border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-	border:SetSize(54, 54)
-	border:SetPoint("TOPLEFT", -11, 11)
 
 	local glow = button:CreateTexture(nil, "OVERLAY")
 	glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	glow:SetBlendMode("ADD")
-	glow:SetSize(48, 48)
+	glow:SetSize(38, 38)
 	glow:SetPoint("CENTER")
 	glow:SetVertexColor(1, 0.82, 0)
 	glow:Hide()
