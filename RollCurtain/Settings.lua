@@ -63,6 +63,18 @@ local SCENARIO_DEFINITION = {
 	tooltip = "Hide bonus-roll prompts in scenarios that are not detected as Delves.",
 }
 
+-- Canvas coordinates are intentionally tuned for optical spacing with both
+-- Blizzard's native Settings checkbox and ElvUI's filled checkbox skin.
+-- Primary rows retain the original 44px cadence; the raid group uses slightly
+-- tighter parent spacing and a compact nested-row gap so the section reads as
+-- one hierarchy instead of three unrelated rows.
+local PRIMARY_START_Y = -100
+local PRIMARY_ROW_SPACING = 44
+local RAID_PARENT_Y = -272
+local RAID_CHILD_Y = -324
+local SCENARIO_COLLAPSED_Y = -316
+local SCENARIO_EXPANDED_Y = -376
+
 local function GetMetadata(field, fallback)
 	if C_AddOns and C_AddOns.GetAddOnMetadata then
 		return C_AddOns.GetAddOnMetadata(addonName, field) or fallback
@@ -153,7 +165,7 @@ local function SetRaidChildrenVisible(addonObject, visible)
 
 	local scenario = addonObject.settingsControls.scenarios
 	if scenario then
-		SetCheckboxPosition(scenario, 24, visible and -404 or -312)
+		SetCheckboxPosition(scenario, 24, visible and SCENARIO_EXPANDED_Y or SCENARIO_COLLAPSED_Y)
 	end
 end
 
@@ -219,30 +231,25 @@ function addon:RegisterSettings()
 	self.settingsControls = {}
 	self.settingVariables = nil
 
-	local primaryY = -100
-	local primaryRowSpacing = 44
 	for index, definition in ipairs(PRIMARY_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, 24, primaryY - ((index - 1) * primaryRowSpacing))
+		SetCheckboxPosition(checkbox, 24, PRIMARY_START_Y - ((index - 1) * PRIMARY_ROW_SPACING))
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 		end)
 		self.settingsControls[key] = checkbox
 	end
 
-	-- ElvUI's Canvas checkbox skin makes the raid row look optically farther
-	-- from Dungeons than the raw anchor values suggest. Pull the whole raid
-	-- section up slightly so the visual rhythm matches the primary rows.
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
-	SetCheckboxPosition(raidCheckbox, 24, -262)
+	SetCheckboxPosition(raidCheckbox, 24, RAID_PARENT_Y)
 	self.settingsControls.raidsEnabled = raidCheckbox
 
 	local raidChildX = { 62, 178, 288, 404, 520 }
 	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, raidChildX[index], -338)
+		SetCheckboxPosition(checkbox, raidChildX[index], RAID_CHILD_Y)
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 
