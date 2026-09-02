@@ -153,7 +153,7 @@ local function SetRaidChildrenVisible(addonObject, visible)
 
 	local scenario = addonObject.settingsControls.scenarios
 	if scenario then
-		SetCheckboxPosition(scenario, 24, visible and -418 or -326)
+		SetCheckboxPosition(scenario, 24, visible and -404 or -312)
 	end
 end
 
@@ -231,16 +231,18 @@ function addon:RegisterSettings()
 		self.settingsControls[key] = checkbox
 	end
 
-	-- Continue the same 44px cadence as the primary rows when the raid group is collapsed.
+	-- ElvUI's Canvas checkbox skin makes the raid row look optically farther
+	-- from Dungeons than the raw anchor values suggest. Pull the whole raid
+	-- section up slightly so the visual rhythm matches the primary rows.
 	local raidCheckbox = CreateCheckbox(panel, RAID_PARENT_DEFINITION)
-	SetCheckboxPosition(raidCheckbox, 24, -276)
+	SetCheckboxPosition(raidCheckbox, 24, -262)
 	self.settingsControls.raidsEnabled = raidCheckbox
 
 	local raidChildX = { 62, 178, 288, 404, 520 }
 	for index, definition in ipairs(RAID_SETTING_DEFINITIONS) do
 		local key = definition.key
 		local checkbox = CreateCheckbox(panel, definition)
-		SetCheckboxPosition(checkbox, raidChildX[index], -352)
+		SetCheckboxPosition(checkbox, raidChildX[index], -338)
 		checkbox:SetScript("OnClick", function(button)
 			RollCurtainDB[key] = button:GetChecked() == true
 
