@@ -16,3 +16,4 @@ MinimapButton.lua
 Notifications.lua
 SettingsExtensions.lua
 ProfilesElvUILayout.lua
+ProfilesElvUISkin.lua
