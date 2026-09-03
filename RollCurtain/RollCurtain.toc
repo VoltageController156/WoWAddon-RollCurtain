@@ -15,3 +15,4 @@ SettingsLayout.lua
 MinimapButton.lua
 Notifications.lua
 SettingsExtensions.lua
+ProfilesElvUILayout.lua
