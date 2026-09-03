@@ -9,6 +9,12 @@ on:
       - "tests/**"
       - "CHANGELOG.md"
       - ".github/workflows/release.yml"
+  pull_request:
+    paths:
+      - "RollCurtain/**"
+      - "tests/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 permissions:
@@ -43,12 +49,14 @@ jobs:
         run: lua5.4 tests/test_core.lua
 
       - name: Package add-on
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           version="${{ steps.version.outputs.version }}"
           zip -r "RollCurtain-$version.zip" RollCurtain
 
       - name: Build release notes
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           version="${{ steps.version.outputs.version }}"
@@ -63,6 +71,7 @@ jobs:
           fi
 
       - name: Check for existing GitHub release
+        if: github.event_name != 'pull_request'
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -76,7 +85,7 @@ jobs:
           fi
 
       - name: Create GitHub release
-        if: steps.existing.outputs.exists == 'false'
+        if: github.event_name != 'pull_request' && steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
