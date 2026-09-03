@@ -2,21 +2,50 @@
 
 <img src="assets/roll-curtain-icon.png" alt="Roll Curtain icon" width="180">
 
-Roll Curtain is a lightweight World of Warcraft Retail add-on that hides the bonus-roll prompt in the activities you choose while still letting you recover a hidden prompt before it expires.
+Roll Curtain is a lightweight World of Warcraft Retail add-on that hides bonus-roll prompts in the activities you choose, lets you recover a hidden prompt before it expires, and can require confirmation before a bonus-roll token is spent.
 
-By default, it hides the prompt in:
+By default, fresh installs hide the prompt in:
 
 - Delves
 - Prey hunts
 - World bosses and other outdoor content
+- Normal dungeons
+- Heroic dungeons
+- Mythic dungeons
 
-It leaves the prompt visible in dungeons, raids, and other scenarios unless you explicitly enable those options.
+Mythic+, raids, and other scenarios remain visible unless you enable those options.
 
 ## Configuration
 
 Open **Options → AddOns → Roll Curtain** and check the activities where you do not want to see a bonus-roll prompt.
 
+### Dungeons
+
+Dungeon suppression uses a top-level **Dungeons** switch with a horizontal row for:
+
+- Normal
+- Heroic
+- Mythic
+- Mythic+
+
+On a fresh install, Normal, Heroic, and Mythic are selected while Mythic+ remains opt-in. Turning Dungeons off clears all four difficulties. If the final selected dungeon difficulty is cleared manually, the Dungeons switch turns off and the row collapses.
+
+Existing users upgrading from the old generic Dungeons option keep their prior behavior: an enabled generic Dungeon setting migrates to all four known dungeon difficulties enabled, while disabled remains fully disabled.
+
+### Raids
+
 Raid suppression uses a top-level **Raids** switch. Enabling it reveals Story, LFR, Normal, Heroic, and Mythic options in a horizontal row. Story is selected automatically when Raids is first enabled; the other difficulties remain opt-in.
+
+### Bonus-roll confirmation
+
+**Confirm before using a bonus roll** is enabled by default in the Safety section.
+
+When you click Blizzard's bonus-roll die, Roll Curtain shows a confirmation containing:
+
+- Your active loot specialization
+- The number of bonus-roll tokens that will remain after the roll
+
+**Confirm** proceeds through Blizzard's normal bonus-roll action. **Cancel** leaves the original bonus-roll prompt available. Disabling the setting restores Blizzard's normal one-click behavior.
 
 ### Slash commands
 
@@ -67,8 +96,9 @@ Roll Curtain includes a draggable minimap button with a die icon.
 - **Delves:** detected through Blizzard's active-Delve APIs.
 - **Prey hunts:** detected through Blizzard's active-Prey-quest API.
 - **World bosses / outdoor content:** any bonus-roll prompt received outside an instance.
-- **Dungeons and scenarios:** detected from the current instance type.
+- **Dungeons:** detected from Blizzard's instance type and difficulty ID, with explicit Normal, Heroic, Mythic, and Mythic+ controls. Unrecognized dungeon difficulties fail open.
 - **Raids:** detected from the current instance type and Blizzard difficulty ID, with separate Story, LFR, Normal, Heroic, and Mythic controls beneath the Raids master switch.
+- **Other scenarios:** detected from the current instance type after Delves are excluded.
 - **Unknown content:** the prompt remains visible as a safety fallback.
 
 If a Prey hunt is active while you complete a different outdoor encounter, that prompt may be classified as Prey because Blizzard's bonus-roll event does not include a distinct activity type.
