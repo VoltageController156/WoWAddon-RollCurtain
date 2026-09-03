@@ -4,7 +4,7 @@ local DEFAULT_ANGLE = 225
 local MINIMAP_RADIUS = 80
 local REFRESH_INTERVAL = 0.5
 local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon.png"
-local RECOVERY_RING_TEXTURE = "Interface\\Minimap\\MiniMap-TrackingBorder"
+local RECOVERY_RING_TEXTURE = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 local RECOVERY_HALO_TEXTURE = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 
 local function GetSavedAngle()
@@ -63,7 +63,7 @@ function addon:SetMinimapRecoveryGlowActive(active)
 	if ring then ring:SetShown(active) end
 	if halo then
 		halo:SetShown(active)
-		if active then halo:SetAlpha(0.35) end
+		if active then halo:SetAlpha(0.52) end
 	end
 	if active then
 		button.recoveryPulseElapsed = button.recoveryPulseElapsed or 0
@@ -82,10 +82,11 @@ local function UpdateGlowPulse(button, elapsed)
 	if not ring or not halo or not ring:IsShown() then return end
 
 	button.recoveryPulseElapsed = (button.recoveryPulseElapsed or 0) + elapsed
-	local pulse = (math.sin(button.recoveryPulseElapsed * 3.2) + 1) * 0.5
-	-- Keep the gold ring crisp while the softer outer halo gently breathes.
-	ring:SetAlpha(0.88 + (pulse * 0.12))
-	halo:SetAlpha(0.20 + (pulse * 0.34))
+	local pulse = (math.sin(button.recoveryPulseElapsed * 2.8) + 1) * 0.5
+	-- Keep a strong, crisp gold circle at all times and let the larger outer
+	-- halo breathe enough to be noticeable without turning into a flashing box.
+	ring:SetAlpha(0.92 + (pulse * 0.08))
+	halo:SetAlpha(0.34 + (pulse * 0.46))
 end
 
 local function ShowTooltip(button)
@@ -126,29 +127,32 @@ function addon:RegisterMinimapButton()
 	icon:SetTexCoord(0, 1, 0, 1)
 	button.icon = icon
 
-	-- The old UI-ActionButton-Border texture was square. Use Blizzard's round
-	-- minimap tracking border instead, tinted warm gold, so the recovery state
-	-- follows the circular minimap icon cleanly even inside button collectors.
+	-- Use the symmetric minimap highlight for both layers. The old tracking
+	-- border artwork contains asymmetric padding, which made the recovery ring
+	-- look shifted inside minimap-button collectors. Anchor directly to the icon
+	-- texture so both circles stay centered on the visible die artwork.
 	local ring = button:CreateTexture(nil, "OVERLAY")
 	ring:SetTexture(RECOVERY_RING_TEXTURE)
 	if type(ring.SetDesaturated) == "function" then ring:SetDesaturated(true) end
 	ring:SetBlendMode("ADD")
-	ring:SetSize(44, 44)
-	ring:SetPoint("CENTER")
-	ring:SetVertexColor(1, 0.72, 0.08)
-	ring:SetAlpha(0.95)
+	ring:SetSize(36, 36)
+	ring:SetPoint("CENTER", icon, "CENTER", 0, 0)
+	ring:SetVertexColor(1, 0.76, 0.08)
+	ring:SetAlpha(0.96)
 	ring:Hide()
 	button.recoveryGlow = ring
 
-	-- A second circular highlight gives the ring a subtle breathing shine rather
-	-- than a flat border. It deliberately stays soft so the die art remains clear.
+	-- The larger copy provides the shiny gold aura. Keeping the inner ring within
+	-- the 32px button makes the recovery state readable even if a collector clips
+	-- some of the outer halo.
 	local halo = button:CreateTexture(nil, "OVERLAY")
 	halo:SetTexture(RECOVERY_HALO_TEXTURE)
+	if type(halo.SetDesaturated) == "function" then halo:SetDesaturated(true) end
 	halo:SetBlendMode("ADD")
-	halo:SetSize(42, 42)
-	halo:SetPoint("CENTER")
-	halo:SetVertexColor(1, 0.82, 0.18)
-	halo:SetAlpha(0.35)
+	halo:SetSize(46, 46)
+	halo:SetPoint("CENTER", icon, "CENTER", 0, 0)
+	halo:SetVertexColor(1, 0.84, 0.16)
+	halo:SetAlpha(0.52)
 	halo:Hide()
 	button.recoveryGlowHalo = halo
 	button.recoveryPulseElapsed = 0
