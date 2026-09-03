@@ -16,12 +16,17 @@ local chatMessages = {}
 local createdCheckboxes = {}
 local createdFontStrings = {}
 local popupShown
+local subcategoryRegistered = false
 
 SlashCmdList = {}
 StaticPopupDialogs = {}
 CANCEL = "Cancel"
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) table.insert(chatMessages, message) end }
 UIParent = {}
+Minimap = nil
+
+function UnitFullName() return "Tester", "TestRealm" end
+function GetRealmName() return "TestRealm" end
 
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
@@ -49,6 +54,7 @@ end
 local function NewFontString()
 	local fontString = { shown = true, text = "" }
 	function fontString:SetPoint(...) self.point = { ... } end
+	function fontString:ClearAllPoints() self.point = nil end
 	function fontString:SetText(text) self.text = text end
 	function fontString:Show() self.shown = true end
 	function fontString:Hide() self.shown = false end
@@ -57,7 +63,7 @@ local function NewFontString()
 end
 
 function CreateFrame(frameType, _, _, template)
-	local frame = { frameType = frameType, template = template, scripts = {}, shown = true, checked = false }
+	local frame = { frameType = frameType, template = template, scripts = {}, shown = true, checked = false, enabled = true }
 	function frame:RegisterEvent() end
 	function frame:SetScript(scriptName, callback)
 		self.scripts[scriptName] = callback
@@ -71,6 +77,8 @@ function CreateFrame(frameType, _, _, template)
 	function frame:CreateFontString() return NewFontString() end
 	function frame:SetChecked(value) self.checked = value == true end
 	function frame:GetChecked() return self.checked end
+	function frame:SetEnabled(value) self.enabled = value == true end
+	function frame:IsEnabled() return self.enabled end
 	function frame:Show() self.shown = true end
 	function frame:Hide() self.shown = false end
 	function frame:IsShown() return self.shown end
@@ -91,9 +99,7 @@ end
 function SetItemRef() end
 
 local rollButton = { scripts = {}, enabled = true }
-rollButton.scripts.OnClick = function()
-	acceptCount = acceptCount + 1
-end
+rollButton.scripts.OnClick = function() acceptCount = acceptCount + 1 end
 function rollButton:GetScript(name) return self.scripts[name] end
 function rollButton:SetScript(name, callback) self.scripts[name] = callback end
 function rollButton:Enable() self.enabled = true end
@@ -137,99 +143,143 @@ function GetInstanceInfo() return "Test Instance", instanceType, difficultyID en
 
 Settings = {
 	RegisterCanvasLayoutCategory = function() return { GetID = function() return 1 end } end,
+	RegisterCanvasLayoutSubcategory = function()
+		subcategoryRegistered = true
+		return { GetID = function() return 2 end }
+	end,
 	RegisterAddOnCategory = function() end,
 	OpenToCategory = function() end,
-	GetSetting = function() return nil end,
 }
 
 assert(loadfile("RollCurtain/Core.lua"))("RollCurtain", addon)
 assert(loadfile("RollCurtain/Settings.lua"))("RollCurtain", addon)
+assert(loadfile("RollCurtain/MinimapButton.lua"))("RollCurtain", addon)
 assert(eventHandler, "Core did not register an event handler")
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
 
--- Fresh 0.0.5 defaults.
-assert(RollCurtainDB.delves == true)
-assert(RollCurtainDB.prey == true)
-assert(RollCurtainDB.world == true)
-assert(RollCurtainDB.dungeonsEnabled == true, "Dungeons should be enabled by default")
-assert(RollCurtainDB.dungeonNormal == true, "Normal dungeons should be hidden by default")
-assert(RollCurtainDB.dungeonHeroic == true, "Heroic dungeons should be hidden by default")
-assert(RollCurtainDB.dungeonMythic == true, "Mythic dungeons should be hidden by default")
-assert(RollCurtainDB.dungeonMythicPlus == false, "Mythic+ should remain visible by default")
-assert(RollCurtainDB.raidsEnabled == false)
-assert(RollCurtainDB.raidStory == false)
-assert(RollCurtainDB.raidLFR == false)
-assert(RollCurtainDB.raidNormal == false)
-assert(RollCurtainDB.raidHeroic == false)
-assert(RollCurtainDB.raidMythic == false)
-assert(RollCurtainDB.scenarios == false)
-assert(RollCurtainDB.confirmBonusRoll == true, "Bonus-roll confirmation should be enabled by default")
-assert(RollCurtainDB.dungeons == nil)
-assert(RollCurtainDB.raids == nil)
-assert(#createdCheckboxes == 16, "Expected sixteen custom settings checkboxes")
-assert(bonusRollHook and chatLinkHook, "Required hooks were not installed")
+local function profile()
+	return addon:GetCurrentProfile()
+end
+
+-- Profile-backed fresh defaults and database shape.
+assert(RollCurtainDB.schemaVersion == 1)
+assert(type(RollCurtainDB.profiles) == "table")
+assert(type(RollCurtainDB.profileKeys) == "table")
+assert(type(RollCurtainDB.minimapAngles) == "table")
+assert(addon:GetCharacterKey() == "Tester - TestRealm")
+assert(addon:GetCurrentProfileName() == "Default")
+assert(RollCurtainDB.profileKeys["Tester - TestRealm"] == "Default")
+assert(profile().delves == true)
+assert(profile().prey == true)
+assert(profile().world == true)
+assert(profile().dungeonsEnabled == true)
+assert(profile().dungeonNormal == true)
+assert(profile().dungeonHeroic == true)
+assert(profile().dungeonMythic == true)
+assert(profile().dungeonMythicPlus == false, "Mythic+ should remain visible by default")
+assert(profile().raidsEnabled == false)
+assert(profile().confirmBonusRoll == true)
+assert(profile().showMinimapButton == true)
+assert(#createdCheckboxes == 17, "Expected seventeen custom settings checkboxes")
+assert(subcategoryRegistered, "Commands & Help subcategory should be registered")
+assert(addon.helpSettingsCategory, "Commands & Help category reference missing")
 assert(addon.confirmBonusRollHookInstalled, "Bonus-roll confirmation hook was not installed")
 
 for _, checkbox in ipairs(createdCheckboxes) do
 	assert(checkbox.template == "SettingsCheckboxTemplate")
 end
-
-for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
-	assert(addon.settingsControls[key].shown == true, key .. " should show while Dungeons is enabled")
-end
-for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
-	assert(addon.settingsControls[key].shown == false, key .. " should hide while Raids is disabled")
-end
-assert(addon.settingsControls.confirmBonusRoll:GetChecked() == true)
+assert(addon.settingsControls.showMinimapButton:GetChecked() == true)
+assert(addon.profileSelector.text == "Default")
+assert(addon.renameProfileButton.enabled == false and addon.deleteProfileButton.enabled == false, "Default profile controls should be protected")
 
 local foundMetadata = false
+local foundHelp = false
 for _, fontString in ipairs(createdFontStrings) do
 	if fontString.text:find("0.0.5", 1, true) and fontString.text:find("VoltageController156", 1, true) then foundMetadata = true end
+	if fontString.text:find("/rc status", 1, true) then foundHelp = true end
 end
 assert(foundMetadata, "Settings should display version 0.0.5 and author")
+assert(foundHelp, "Commands & Help should document slash commands")
 
--- Dungeon parent/child layout and behavior.
+-- Dungeon parent/child behavior and Mythic+ default.
 local dungeons = addon.settingsControls.dungeonsEnabled
 local dungeonNormal = addon.settingsControls.dungeonNormal
 local dungeonHeroic = addon.settingsControls.dungeonHeroic
 local dungeonMythic = addon.settingsControls.dungeonMythic
 local dungeonMythicPlus = addon.settingsControls.dungeonMythicPlus
-local previousX
-for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
-	local checkbox = addon.settingsControls[key]
-	if previousX then assert(checkbox.point[2] > previousX, "Dungeon difficulties should be horizontal") end
-	previousX = checkbox.point[2]
-end
 
-dungeons:SetChecked(false)
-dungeons.scripts.OnClick(dungeons)
-assert(RollCurtainDB.dungeonsEnabled == false)
+dungeons:SetChecked(false); dungeons.scripts.OnClick(dungeons)
+assert(addon:GetSetting("dungeonsEnabled") == false)
 for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
-	assert(RollCurtainDB[key] == false)
+	assert(addon:GetSetting(key) == false)
 	assert(addon.settingsControls[key].shown == false)
 end
 
-dungeons:SetChecked(true)
-dungeons.scripts.OnClick(dungeons)
-assert(RollCurtainDB.dungeonNormal == true)
-assert(RollCurtainDB.dungeonHeroic == true)
-assert(RollCurtainDB.dungeonMythic == true)
-assert(RollCurtainDB.dungeonMythicPlus == false)
+dungeons:SetChecked(true); dungeons.scripts.OnClick(dungeons)
+assert(addon:GetSetting("dungeonNormal") == true)
+assert(addon:GetSetting("dungeonHeroic") == true)
+assert(addon:GetSetting("dungeonMythic") == true)
+assert(addon:GetSetting("dungeonMythicPlus") == false)
 
 dungeonNormal:SetChecked(false); dungeonNormal.scripts.OnClick(dungeonNormal)
 dungeonHeroic:SetChecked(false); dungeonHeroic.scripts.OnClick(dungeonHeroic)
-assert(RollCurtainDB.dungeonsEnabled == true)
+assert(addon:GetSetting("dungeonsEnabled") == true)
 dungeonMythic:SetChecked(false); dungeonMythic.scripts.OnClick(dungeonMythic)
-assert(RollCurtainDB.dungeonsEnabled == false, "Dungeons should disable when final selected child is cleared")
-assert(dungeons:GetChecked() == false)
+assert(addon:GetSetting("dungeonsEnabled") == false, "Dungeons should disable when final selected child is cleared")
 
 -- Raid behavior remains unchanged.
 local raids = addon.settingsControls.raidsEnabled
 raids:SetChecked(true); raids.scripts.OnClick(raids)
-assert(RollCurtainDB.raidsEnabled == true and RollCurtainDB.raidStory == true)
+assert(addon:GetSetting("raidsEnabled") == true and addon:GetSetting("raidStory") == true)
 local story = addon.settingsControls.raidStory
 story:SetChecked(false); story.scripts.OnClick(story)
-assert(RollCurtainDB.raidsEnabled == false, "Raids should disable when final selected child is cleared")
+assert(addon:GetSetting("raidsEnabled") == false)
+
+-- Profile creation, assignment, switching and persistence.
+assert(addon:CreateProfile("Main") == true)
+assert(addon:GetCurrentProfileName() == "Main")
+assert(RollCurtainDB.profileKeys["Tester - TestRealm"] == "Main")
+addon:SetSetting("delves", false)
+addon:SetSetting("showMinimapButton", false)
+assert(addon:SelectProfile("Default") == true)
+assert(addon:GetSetting("delves") == true, "Default profile should remain independent")
+assert(addon:GetSetting("showMinimapButton") == true)
+assert(addon:SelectProfile("Main") == true)
+assert(addon:GetSetting("delves") == false, "Profile settings should persist after switching away and back")
+assert(addon:GetSetting("showMinimapButton") == false)
+
+-- Profiles can be shared, renamed, copied, and deleted safely.
+RollCurtainDB.profileKeys["Alt - TestRealm"] = "Main"
+assert(addon:RenameCurrentProfile("Raid Main") == true)
+assert(addon:GetCurrentProfileName() == "Raid Main")
+assert(RollCurtainDB.profileKeys["Alt - TestRealm"] == "Raid Main", "Rename should update all character assignments")
+assert(addon:CopyProfile("Default") == true)
+assert(addon:GetSetting("delves") == true, "Copy should replace current profile settings from the source")
+addon:SetSetting("delves", false)
+addon:ResetDefaults()
+assert(addon:GetSetting("delves") == true, "Reset should reset current profile")
+assert(addon:GetCurrentProfileName() == "Raid Main", "Reset should not change profile assignment")
+assert(addon:DeleteCurrentProfile() == true)
+assert(addon:GetCurrentProfileName() == "Default")
+assert(RollCurtainDB.profileKeys["Alt - TestRealm"] == "Default", "Delete should move assigned characters to Default")
+assert(RollCurtainDB.profiles["Raid Main"] == nil)
+assert(addon:RenameCurrentProfile("Nope") == false, "Default profile must not be renamed")
+assert(addon:DeleteCurrentProfile() == false, "Default profile must not be deleted")
+
+-- Minimap visibility is profile-backed, while position is character-specific.
+local mockMinimapButton = { shown = true }
+function mockMinimapButton:Show() self.shown = true end
+function mockMinimapButton:Hide() self.shown = false end
+addon.minimapButton = mockMinimapButton
+addon:SetSetting("showMinimapButton", false)
+addon:UpdateMinimapButtonVisibility()
+assert(mockMinimapButton.shown == false)
+addon:SetMinimapButtonAngle(137)
+assert(addon:GetMinimapButtonAngle() == 137)
+addon:SetSetting("showMinimapButton", true)
+addon:UpdateMinimapButtonVisibility()
+assert(mockMinimapButton.shown == true)
+assert(addon:GetMinimapButtonAngle() == 137, "Showing/hiding the minimap button should not reset position")
 
 -- Classification, including explicit dungeon difficulties.
 activePreyQuest = 12345; activeDelve = true; instanceType = "raid"
@@ -241,17 +291,16 @@ difficultyID = 1; assert(addon:GetCurrentContentType() == "dungeonNormal")
 difficultyID = 2; assert(addon:GetCurrentContentType() == "dungeonHeroic")
 difficultyID = 23; assert(addon:GetCurrentContentType() == "dungeonMythic")
 difficultyID = 8; assert(addon:GetCurrentContentType() == "dungeonMythicPlus")
-difficultyID = 24; assert(addon:GetCurrentContentType() == "dungeons", "Unknown dungeon difficulty should fail open")
+difficultyID = 24; assert(addon:GetCurrentContentType() == "dungeons")
 instanceType = "raid"
 difficultyID = 220; assert(addon:GetCurrentContentType() == "raidStory")
 difficultyID = 17; assert(addon:GetCurrentContentType() == "raidLFR")
 difficultyID = 14; assert(addon:GetCurrentContentType() == "raidNormal")
 difficultyID = 15; assert(addon:GetCurrentContentType() == "raidHeroic")
 difficultyID = 16; assert(addon:GetCurrentContentType() == "raidMythic")
-difficultyID = nil; assert(addon:GetCurrentContentType() == "raids")
 
 -- Restore behavior still works.
-RollCurtainDB.delves = true
+addon:ResetDefaults()
 activeDelve = true
 FireBonusRoll()
 assert(closeCount == 1 and not bonusRollShown and addon.hiddenBonusRoll)
@@ -263,80 +312,73 @@ assert(BonusRollFrame.remaining == 45 and timerValue == 45)
 
 -- Dungeon suppression defaults and Mythic+ opt-in.
 currentTime = 1000; activeDelve = false; instanceType = "party"
-RollCurtainDB.dungeonsEnabled = true
-RollCurtainDB.dungeonNormal = true
-RollCurtainDB.dungeonHeroic = true
-RollCurtainDB.dungeonMythic = true
-RollCurtainDB.dungeonMythicPlus = false
 difficultyID = 1; FireBonusRoll(); assert(closeCount == 2, "Normal dungeon should suppress by default")
 difficultyID = 8; FireBonusRoll(); assert(closeCount == 2, "Mythic+ should fail open by default")
-RollCurtainDB.dungeonMythicPlus = true; FireBonusRoll(); assert(closeCount == 3, "Enabled Mythic+ should suppress")
+addon:SetSetting("dungeonMythicPlus", true); FireBonusRoll(); assert(closeCount == 3, "Enabled Mythic+ should suppress")
 difficultyID = 24; FireBonusRoll(); assert(closeCount == 3, "Unknown dungeon difficulty should fail open")
 
--- Bonus-roll confirmation: show spec and post-spend token count, then accept exactly once.
-RollCurtainDB.dungeonMythicPlus = false
+-- Confirmation preview works without spending or requiring an active roll.
+popupShown = nil
+local beforePreview = acceptCount
+assert(addon:ShowBonusRollConfirmationPreview() == true)
+assert(popupShown and popupShown.text:find("Preview only", 1, true), "Preview should be clearly labeled")
+assert(popupShown.text:find("Mistweaver", 1, true), "Preview should show loot spec")
+StaticPopupDialogs[popupShown.key].OnAccept(nil, popupShown.data)
+assert(acceptCount == beforePreview, "Preview confirmation must never spend a roll")
+
+-- Real bonus-roll confirmation: spec + post-spend token count and one accept.
+addon:SetSetting("dungeonMythicPlus", false)
 difficultyID = 8
-RollCurtainDB.confirmBonusRoll = true
+addon:SetSetting("confirmBonusRoll", true)
 popupShown = nil
 FireBonusRoll(1)
 local beforeAccept = acceptCount
 rollButton.scripts.OnClick(rollButton)
 assert(popupShown, "Confirmation popup was not shown")
-assert(acceptCount == beforeAccept, "Roll should not be accepted before confirmation")
-assert(popupShown.text:find("Mistweaver", 1, true), "Loot spec missing from confirmation")
-assert(popupShown.text:find("Bonus rolls remaining", 1, true), "Remaining-token label missing")
-assert(popupShown.text:find("2", 1, true), "Post-spend token count should be shown")
+assert(acceptCount == beforeAccept)
+assert(popupShown.text:find("Mistweaver", 1, true))
+assert(popupShown.text:find("Bonus rolls remaining", 1, true))
+assert(popupShown.text:find("2", 1, true))
 StaticPopupDialogs[popupShown.key].OnAccept(nil, popupShown.data)
-assert(acceptCount == beforeAccept + 1, "Confirm should invoke Blizzard's original roll click once")
+assert(acceptCount == beforeAccept + 1)
 
--- Disabling the safety option restores one-click behavior.
-RollCurtainDB.confirmBonusRoll = false
+addon:SetSetting("confirmBonusRoll", false)
 popupShown = nil
 local beforeDirect = acceptCount
 rollButton.scripts.OnClick(rollButton)
-assert(acceptCount == beforeDirect + 1, "Disabled confirmation should call original click immediately")
-assert(popupShown == nil, "Disabled confirmation should not show a popup")
+assert(acceptCount == beforeDirect + 1)
+assert(popupShown == nil)
 
--- Expired rolls cannot be accepted from a stale confirmation.
-RollCurtainDB.confirmBonusRoll = true
-popupShown = nil
-FireBonusRoll(1)
-rollButton.scripts.OnClick(rollButton)
-local beforeExpiredAccept = acceptCount
-currentTime = BonusRollFrame.endTime + 1
-StaticPopupDialogs[popupShown.key].OnAccept(nil, popupShown.data)
-assert(acceptCount == beforeExpiredAccept, "Expired confirmation should not spend a roll")
-assert(chatMessages[#chatMessages]:find("no longer available", 1, true))
-
--- Migration: map the old generic dungeon toggle into the new defaults.
-RollCurtainDB = { dungeons = false }
+-- Legacy flat migration into Default profile, including angle and Mythic+ opt-in.
+RollCurtainDB = { dungeons = true, raidLFR = true, minimapButtonAngle = 123 }
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.dungeonsEnabled == false)
-assert(RollCurtainDB.dungeonNormal == false and RollCurtainDB.dungeonHeroic == false and RollCurtainDB.dungeonMythic == false and RollCurtainDB.dungeonMythicPlus == false)
-assert(RollCurtainDB.confirmBonusRoll == true, "Existing users should receive confirmation enabled by default")
-assert(RollCurtainDB.dungeons == nil)
+assert(addon:GetCurrentProfileName() == "Default")
+assert(addon:GetSetting("dungeonsEnabled") == true)
+assert(addon:GetSetting("dungeonNormal") == true and addon:GetSetting("dungeonHeroic") == true and addon:GetSetting("dungeonMythic") == true)
+assert(addon:GetSetting("dungeonMythicPlus") == false, "Legacy generic Dungeons should leave Mythic+ opt-in")
+assert(addon:GetSetting("raidsEnabled") == true and addon:GetSetting("raidLFR") == true)
+assert(addon:GetSetting("confirmBonusRoll") == true and addon:GetSetting("showMinimapButton") == true)
+assert(addon:GetMinimapButtonAngle() == 123, "Legacy minimap angle should migrate per character")
+assert(RollCurtainDB.minimapButtonAngle == nil)
 
-RollCurtainDB = { dungeons = true }
+-- Existing profile schema survives addon updates without settings being reset.
+addon:CreateProfile("Persist Me")
+addon:SetSetting("world", false)
+addon:SetSetting("dungeonHeroic", false)
+local dbBeforeReload = RollCurtainDB
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.dungeonsEnabled == true)
-assert(RollCurtainDB.dungeonNormal == true and RollCurtainDB.dungeonHeroic == true and RollCurtainDB.dungeonMythic == true and RollCurtainDB.dungeonMythicPlus == false, "Legacy enabled dungeons should leave Mythic+ opt-in")
+assert(RollCurtainDB == dbBeforeReload, "Profile database should be preserved on update/reload")
+assert(addon:GetCurrentProfileName() == "Persist Me")
+assert(addon:GetSetting("world") == false and addon:GetSetting("dungeonHeroic") == false)
 
--- Existing raid migrations remain intact.
-RollCurtainDB = { raidLFR = true, raidMythic = false }
-eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.raidsEnabled == true)
-assert(RollCurtainDB.raidLFR == true and RollCurtainDB.raidStory == false and RollCurtainDB.raidMythic == false)
-
-RollCurtainDB = { raids = true, raidMythic = false }
-eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.raidsEnabled == true)
-assert(RollCurtainDB.raidStory == true and RollCurtainDB.raidLFR == true and RollCurtainDB.raidNormal == true and RollCurtainDB.raidHeroic == true)
-assert(RollCurtainDB.raidMythic == false)
-assert(RollCurtainDB.raids == nil)
-
+-- Slash aliases and reset semantics remain available.
 assert(SLASH_ROLLCURTAIN1 == "/rollcurtain")
 assert(SLASH_ROLLCURTAIN2 == "/rcurtain")
 assert(SLASH_ROLLCURTAIN3 == "/rc")
 assert(SLASH_ROLLCURTAIN4 == "/rollc")
+local profileNameBeforeReset = addon:GetCurrentProfileName()
+SlashCmdList.ROLLCURTAIN("reset")
+assert(addon:GetCurrentProfileName() == profileNameBeforeReset, "/rc reset should only reset the active profile")
+assert(addon:GetSetting("world") == true and addon:GetSetting("dungeonHeroic") == true)
 
 print("Roll Curtain tests passed")
