@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.7
+
+### Changed
+
+- Established a persistent beta release channel for pre-production testing before stable releases are promoted to `main`.
+
 ## 0.0.6
 
 ### Fixed

@@ -2,7 +2,7 @@
 ## Title: Roll Curtain
 ## Notes: Hides bonus-roll prompts in the content types you choose.
 ## Author: VoltageController156
-## Version: 0.0.6
+## Version: 0.0.7
 ## SavedVariables: RollCurtainDB
 ## X-Category: Loot
 ## X-License: MIT
