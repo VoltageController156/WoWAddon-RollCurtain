@@ -15,18 +15,26 @@ local function GetFrameParentName(frame)
 	return "<unnamed>"
 end
 
-local function IsAddOnLoaded(name)
+local function IsNamedAddOnLoaded(name)
 	if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
 		return C_AddOns.IsAddOnLoaded(name) == true
 	end
-	if type(IsAddOnLoaded) == "function" then
-		return IsAddOnLoaded(name) == true
+	if _G and type(_G.IsAddOnLoaded) == "function" then
+		return _G.IsAddOnLoaded(name) == true
 	end
 	return false
 end
 
 local function DetectCollector()
-	if IsAddOnLoaded("MinimapButtonBag") then return "MinimapButtonBag" end
+	-- MinimapButtonButton (syndenbock) is the common modern collector with the
+	-- ellipsis toggle button. MinimapButtonBag is a separate newer addon with a
+	-- very similar name, so recognize both explicitly.
+	if IsNamedAddOnLoaded("MinimapButtonButton") or (_G and _G.MinimapButtonButtonOptions ~= nil) then
+		return "MinimapButtonButton"
+	end
+	if IsNamedAddOnLoaded("MinimapButtonBag") or (_G and _G.MinimapButtonBagDB ~= nil) then
+		return "MinimapButtonBag"
+	end
 	return "none"
 end
 
