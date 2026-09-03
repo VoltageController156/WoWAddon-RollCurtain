@@ -21,3 +21,4 @@ ProfilesElvUISkin.lua
 CharacterIdentity.lua
 Debug.lua
 DebugMinimap.lua
+DebugRecoveryPreview.lua
