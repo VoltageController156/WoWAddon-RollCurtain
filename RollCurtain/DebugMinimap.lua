@@ -26,10 +26,13 @@ local function IsNamedAddOnLoaded(name)
 end
 
 local function DetectCollector()
-	-- MinimapButtonButton (syndenbock) is the common modern collector with the
-	-- ellipsis toggle button. MinimapButtonBag is a separate newer addon with a
-	-- very similar name, so recognize both explicitly.
-	if IsNamedAddOnLoaded("MinimapButtonButton") or (_G and _G.MinimapButtonButtonOptions ~= nil) then
+	-- MinimapButtonButton creates a named global frame called
+	-- MinimapButtonButtonButton, so that is the strongest runtime signal. The
+	-- SavedVariables/API checks remain as fallbacks because collectors can load
+	-- at slightly different points depending on the user's addon set.
+	if (_G and _G.MinimapButtonButtonButton ~= nil)
+		or IsNamedAddOnLoaded("MinimapButtonButton")
+		or (_G and _G.MinimapButtonButtonOptions ~= nil) then
 		return "MinimapButtonButton"
 	end
 	if IsNamedAddOnLoaded("MinimapButtonBag") or (_G and _G.MinimapButtonBagDB ~= nil) then
