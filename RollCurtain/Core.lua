@@ -1,5 +1,19 @@
 local addonName, addon = ...
 
+local DUNGEON_DIFFICULTY_CONTENT_TYPES = {
+	[1] = "dungeonNormal",
+	[2] = "dungeonHeroic",
+	[23] = "dungeonMythic",
+	[8] = "dungeonMythicPlus",
+}
+
+local DUNGEON_SETTING_KEYS = {
+	dungeonNormal = true,
+	dungeonHeroic = true,
+	dungeonMythic = true,
+	dungeonMythicPlus = true,
+}
+
 local RAID_DIFFICULTY_CONTENT_TYPES = {
 	-- Legacy raid difficulties.
 	[3] = "raidNormal",
@@ -30,7 +44,11 @@ addon.defaults = {
 	delves = true,
 	prey = true,
 	world = true,
-	dungeons = false,
+	dungeonsEnabled = true,
+	dungeonNormal = true,
+	dungeonHeroic = true,
+	dungeonMythic = true,
+	dungeonMythicPlus = false,
 	raidsEnabled = false,
 	raidStory = false,
 	raidLFR = false,
@@ -38,13 +56,18 @@ addon.defaults = {
 	raidHeroic = false,
 	raidMythic = false,
 	scenarios = false,
+	confirmBonusRoll = true,
 }
 
 addon.contentLabels = {
 	delves = "Delves",
 	prey = "Prey hunts",
 	world = "World bosses / outdoor content",
-	dungeons = "Dungeons",
+	dungeonNormal = "Normal dungeons",
+	dungeonHeroic = "Heroic dungeons",
+	dungeonMythic = "Mythic dungeons",
+	dungeonMythicPlus = "Mythic+ dungeons",
+	dungeons = "Other dungeon difficulty",
 	raidStory = "Story Mode raids",
 	raidLFR = "Raid Finder (LFR)",
 	raidNormal = "Normal raids",
@@ -58,6 +81,7 @@ addon.contentLabels = {
 local PREFIX = "|cff7dd3fcRoll Curtain:|r "
 local SHOW_ROLL_LINK_TARGET = "rollcurtain:show"
 local SHOW_ROLL_LINK = "|H" .. SHOW_ROLL_LINK_TARGET .. "|h|cff7dd3fc[Show Bonus Roll Prompt]|r|h"
+local CONFIRM_POPUP_KEY = "ROLLCURTAIN_CONFIRM_BONUS_ROLL"
 local eventFrame = CreateFrame("Frame")
 
 local function Print(message)
@@ -69,9 +93,30 @@ local function InitializeDatabase()
 		RollCurtainDB = {}
 	end
 
+	-- 0.0.4 and earlier used one generic dungeon toggle. Preserve that exact
+	-- behavior for existing users: false becomes all dungeon difficulties off;
+	-- true becomes all known dungeon difficulties on, including Mythic+.
+	local legacyDungeonValue
+	if type(RollCurtainDB.dungeons) == "boolean" then
+		legacyDungeonValue = RollCurtainDB.dungeons
+	end
+	local existingDungeonChildSeen = false
+	local existingDungeonChildEnabled = false
+	for key in pairs(DUNGEON_SETTING_KEYS) do
+		if type(RollCurtainDB[key]) == "boolean" then
+			existingDungeonChildSeen = true
+			if RollCurtainDB[key] == true then
+				existingDungeonChildEnabled = true
+			end
+		end
+	end
+
 	-- 0.0.1 had one generic raid toggle. Carry it into the master raid switch and
 	-- per-difficulty settings when upgrading directly from that release.
-	local legacyRaidValue = type(RollCurtainDB.raids) == "boolean" and RollCurtainDB.raids or nil
+	local legacyRaidValue
+	if type(RollCurtainDB.raids) == "boolean" then
+		legacyRaidValue = RollCurtainDB.raids
+	end
 
 	-- 0.0.2 introduced per-difficulty raid settings without a master switch. If
 	-- any of those settings were enabled, keep raid suppression enabled when the
@@ -86,7 +131,17 @@ local function InitializeDatabase()
 
 	for key, defaultValue in pairs(addon.defaults) do
 		if type(RollCurtainDB[key]) ~= "boolean" then
-			if key == "raidsEnabled" then
+			if key == "dungeonsEnabled" then
+				if legacyDungeonValue ~= nil then
+					RollCurtainDB[key] = legacyDungeonValue
+				elseif existingDungeonChildSeen then
+					RollCurtainDB[key] = existingDungeonChildEnabled
+				else
+					RollCurtainDB[key] = defaultValue
+				end
+			elseif DUNGEON_SETTING_KEYS[key] and legacyDungeonValue ~= nil then
+				RollCurtainDB[key] = legacyDungeonValue
+			elseif key == "raidsEnabled" then
 				if legacyRaidValue ~= nil then
 					RollCurtainDB[key] = legacyRaidValue
 				elseif existingRaidChildEnabled then
@@ -102,14 +157,19 @@ local function InitializeDatabase()
 		end
 	end
 
-	-- The master switch owns its children. Keep the saved database internally
-	-- consistent if it is disabled.
+	if not RollCurtainDB.dungeonsEnabled then
+		for key in pairs(DUNGEON_SETTING_KEYS) do
+			RollCurtainDB[key] = false
+		end
+	end
+
 	if not RollCurtainDB.raidsEnabled then
 		for key in pairs(RAID_SETTING_KEYS) do
 			RollCurtainDB[key] = false
 		end
 	end
 
+	RollCurtainDB.dungeons = nil
 	RollCurtainDB.raids = nil
 end
 
@@ -133,8 +193,6 @@ local function HasActiveDelve()
 end
 
 function addon:GetCurrentContentType()
-	-- Check activity-specific APIs first because Prey hunts take place outdoors
-	-- and Delves are implemented as scenarios.
 	if HasActivePreyHunt() then
 		return "prey"
 	end
@@ -145,7 +203,7 @@ function addon:GetCurrentContentType()
 
 	local _, instanceType, difficultyID = GetInstanceInfo()
 	if instanceType == "party" then
-		return "dungeons"
+		return DUNGEON_DIFFICULTY_CONTENT_TYPES[difficultyID] or "dungeons"
 	elseif instanceType == "raid" then
 		return RAID_DIFFICULTY_CONTENT_TYPES[difficultyID] or "raids"
 	elseif instanceType == "scenario" then
@@ -159,7 +217,9 @@ end
 
 function addon:ShouldHideCurrentPrompt()
 	local contentType = self:GetCurrentContentType()
-	if RAID_SETTING_KEYS[contentType] then
+	if DUNGEON_SETTING_KEYS[contentType] then
+		return RollCurtainDB.dungeonsEnabled == true and RollCurtainDB[contentType] == true, contentType
+	elseif RAID_SETTING_KEYS[contentType] then
 		return RollCurtainDB.raidsEnabled == true and RollCurtainDB[contentType] == true, contentType
 	end
 
@@ -197,10 +257,6 @@ function addon:ShowHiddenBonusRoll()
 	end
 
 	local frame = self.hiddenBonusRoll.frame
-
-	-- BonusRollFrame's OnUpdate does not advance while the frame is hidden, so
-	-- synchronize the visual countdown with Blizzard's absolute end time before
-	-- putting the original frame back into the loot container.
 	if frame.endTime and type(time) == "function" then
 		local remaining = math.max(0, frame.endTime - time())
 		frame.remaining = remaining
@@ -234,12 +290,150 @@ function addon:HideCurrentPromptIfConfigured()
 	end
 end
 
+local function GetLootSpecName()
+	if type(GetLootSpecialization) == "function" then
+		local lootSpecID = GetLootSpecialization()
+		if lootSpecID and lootSpecID > 0 and type(GetSpecializationInfoByID) == "function" then
+			local _, name = GetSpecializationInfoByID(lootSpecID)
+			if name and name ~= "" then
+				return name
+			end
+		end
+	end
+
+	if type(GetSpecialization) == "function" and type(GetSpecializationInfo) == "function" then
+		local specIndex = GetSpecialization()
+		if specIndex then
+			local _, name = GetSpecializationInfo(specIndex)
+			if name and name ~= "" then
+				return name
+			end
+		end
+	end
+
+	return "Current specialization"
+end
+
+local function GetBonusRollCurrencyRemaining()
+	local frame = BonusRollFrame
+	local currencyID = frame and frame.CurrentCountFrame and frame.CurrentCountFrame.currencyID
+	if not currencyID or not C_CurrencyInfo or type(C_CurrencyInfo.GetCurrencyInfo) ~= "function" then
+		return nil
+	end
+
+	local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+	if not currencyInfo or type(currencyInfo.quantity) ~= "number" then
+		return nil
+	end
+
+	local cost = tonumber(addon.currentBonusRollCurrencyCost) or 1
+	return math.max(0, currencyInfo.quantity - cost)
+end
+
+local function IsBonusRollPromptActive(spellID)
+	local frame = BonusRollFrame
+	if not frame or frame.state ~= "prompt" or not frame:IsShown() then
+		return false
+	end
+
+	if spellID and frame.spellID ~= spellID then
+		return false
+	end
+
+	if frame.endTime and type(time) == "function" and frame.endTime <= time() then
+		return false
+	end
+
+	return true
+end
+
+local function EnsureConfirmPopup()
+	if not StaticPopupDialogs or StaticPopupDialogs[CONFIRM_POPUP_KEY] then
+		return
+	end
+
+	StaticPopupDialogs[CONFIRM_POPUP_KEY] = {
+		text = "%s",
+		button1 = "Confirm",
+		button2 = CANCEL or "Cancel",
+		OnAccept = function(_, data)
+			if not data or not IsBonusRollPromptActive(data.spellID) then
+				Print("That bonus roll is no longer available.")
+				return
+			end
+
+			if type(data.originalOnClick) == "function" then
+				data.originalOnClick(data.button)
+			end
+		end,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+end
+
+function addon:ShowBonusRollConfirmation(button, originalOnClick)
+	if not IsBonusRollPromptActive() then
+		Print("That bonus roll is no longer available.")
+		return false
+	end
+
+	EnsureConfirmPopup()
+	if not StaticPopup_Show then
+		return false
+	end
+
+	local remaining = GetBonusRollCurrencyRemaining()
+	local remainingText = remaining ~= nil and tostring(remaining) or "Unknown"
+	local message = string.format(
+		"Are you sure you want to use a bonus roll?\n\nLoot spec: |cffffd100%s|r\nBonus rolls remaining: |cffffd100%s|r",
+		GetLootSpecName(),
+		remainingText
+	)
+
+	StaticPopup_Show(CONFIRM_POPUP_KEY, message, nil, {
+		button = button,
+		originalOnClick = originalOnClick,
+		spellID = BonusRollFrame.spellID,
+	})
+	return true
+end
+
+local function InstallBonusRollConfirmHook()
+	if addon.confirmBonusRollHookInstalled then
+		return
+	end
+
+	local button = BonusRollFrame and BonusRollFrame.PromptFrame and BonusRollFrame.PromptFrame.RollButton
+	if not button or type(button.GetScript) ~= "function" or type(button.SetScript) ~= "function" then
+		return
+	end
+
+	local originalOnClick = button:GetScript("OnClick")
+	if type(originalOnClick) ~= "function" then
+		return
+	end
+
+	button:SetScript("OnClick", function(self, ...)
+		if not RollCurtainDB or RollCurtainDB.confirmBonusRoll ~= true then
+			return originalOnClick(self, ...)
+		end
+
+		addon:ShowBonusRollConfirmation(self, originalOnClick)
+	end)
+
+	addon.confirmBonusRollHookInstalled = true
+end
+
 local function InstallBonusRollHook()
 	if addon.bonusRollHookInstalled or type(BonusRollFrame_StartBonusRoll) ~= "function" then
 		return
 	end
 
-	hooksecurefunc("BonusRollFrame_StartBonusRoll", function()
+	hooksecurefunc("BonusRollFrame_StartBonusRoll", function(_, _, _, _, currencyCost)
+		addon.currentBonusRollCurrencyCost = tonumber(currencyCost) or 1
+		InstallBonusRollConfirmHook()
 		addon:HideCurrentPromptIfConfigured()
 	end)
 
@@ -317,11 +511,14 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddonName)
 			addon:RegisterSettings()
 			InstallBonusRollHook()
 			InstallChatLinkHook()
+			InstallBonusRollConfirmHook()
 		elseif loadedAddonName == "Blizzard_UIPanels_Game" then
 			InstallBonusRollHook()
+			InstallBonusRollConfirmHook()
 		end
 	elseif event == "PLAYER_LOGIN" then
 		InstallBonusRollHook()
 		InstallChatLinkHook()
+		InstallBonusRollConfirmHook()
 	end
 end)
