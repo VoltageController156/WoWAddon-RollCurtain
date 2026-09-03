@@ -131,8 +131,9 @@ for _, definition in ipairs(addon.chatDestinationDefinitions) do addon:SetSettin
 addon:SetSetting("chatNotifyLoot", true)
 addon:SetSetting("chatNotifyRaid", true)
 addon:SetSetting("chatNotifyParty", true)
+local beforeRoutingGeneral = #primaryMessages
 addon:NotifyBonusRollSuppressed("dungeonMythic")
-assert(#primaryMessages == 1, "Only the profile validation message should have reached General so far")
+assert(#primaryMessages == beforeRoutingGeneral, "Unselected General should not receive the routed notification")
 assert(#lootMessages == 1, "Loot destination should receive one notification")
 assert(#groupMessages == 1, "Raid + Party on the same chat frame should be deduped")
 assert(#whisperMessages == 0)
