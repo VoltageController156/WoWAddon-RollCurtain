@@ -4,6 +4,8 @@ local DEFAULT_ANGLE = 225
 local MINIMAP_RADIUS = 80
 local REFRESH_INTERVAL = 0.5
 local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon.png"
+local RECOVERY_RING_TEXTURE = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
+local RECOVERY_HALO_TEXTURE = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 
 local function GetSavedAngle()
 	if type(addon.GetMinimapButtonAngle) == "function" then
@@ -45,11 +47,46 @@ local function UpdateButtonFromCursor(button)
 end
 
 local function HasRecoverableRoll()
+	if type(addon.IsDebugRecoveryPreviewActive) == "function" and addon:IsDebugRecoveryPreviewActive() == true then
+		return true
+	end
 	return type(addon.CanRestoreHiddenBonusRoll) == "function" and addon:CanRestoreHiddenBonusRoll() == true
 end
 
+function addon:SetMinimapRecoveryGlowActive(active)
+	local button = self.minimapButton
+	if not button then return end
+	active = active == true
+
+	local ring = button.recoveryGlow
+	local halo = button.recoveryGlowHalo
+	if ring then ring:SetShown(active) end
+	if halo then
+		halo:SetShown(active)
+		if active then halo:SetAlpha(0.64) end
+	end
+	if active then
+		button.recoveryPulseElapsed = button.recoveryPulseElapsed or 0
+	else
+		button.recoveryPulseElapsed = 0
+	end
+end
+
 local function RefreshGlow(button)
-	button.recoveryGlow:SetShown(HasRecoverableRoll())
+	addon:SetMinimapRecoveryGlowActive(HasRecoverableRoll())
+end
+
+local function UpdateGlowPulse(button, elapsed)
+	local ring = button.recoveryGlow
+	local halo = button.recoveryGlowHalo
+	if not ring or not halo or not ring:IsShown() then return end
+
+	button.recoveryPulseElapsed = (button.recoveryPulseElapsed or 0) + elapsed
+	local pulse = (math.sin(button.recoveryPulseElapsed * 2.8) + 1) * 0.5
+	-- Keep the centered ring crisp, but give both layers a little more visual
+	-- energy so an available recovery is obvious without changing its size.
+	ring:SetAlpha(0.96 + (pulse * 0.04))
+	halo:SetAlpha(0.44 + (pulse * 0.46))
 end
 
 local function ShowTooltip(button)
@@ -90,14 +127,35 @@ function addon:RegisterMinimapButton()
 	icon:SetTexCoord(0, 1, 0, 1)
 	button.icon = icon
 
-	local glow = button:CreateTexture(nil, "OVERLAY")
-	glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-	glow:SetBlendMode("ADD")
-	glow:SetSize(38, 38)
-	glow:SetPoint("CENTER")
-	glow:SetVertexColor(1, 0.82, 0)
-	glow:Hide()
-	button.recoveryGlow = glow
+	-- Use the symmetric minimap highlight for both layers. The old tracking
+	-- border artwork contains asymmetric padding, which made the recovery ring
+	-- look shifted inside minimap-button collectors. Anchor directly to the icon
+	-- texture so both circles stay centered on the visible die artwork.
+	local ring = button:CreateTexture(nil, "OVERLAY")
+	ring:SetTexture(RECOVERY_RING_TEXTURE)
+	if type(ring.SetDesaturated) == "function" then ring:SetDesaturated(true) end
+	ring:SetBlendMode("ADD")
+	ring:SetSize(36, 36)
+	ring:SetPoint("CENTER", icon, "CENTER", 0, 0)
+	ring:SetVertexColor(1, 0.82, 0.12)
+	ring:SetAlpha(1.0)
+	ring:Hide()
+	button.recoveryGlow = ring
+
+	-- The larger copy provides the shiny gold aura. Keeping the inner ring within
+	-- the 32px button makes the recovery state readable even if a collector clips
+	-- some of the outer halo.
+	local halo = button:CreateTexture(nil, "OVERLAY")
+	halo:SetTexture(RECOVERY_HALO_TEXTURE)
+	if type(halo.SetDesaturated) == "function" then halo:SetDesaturated(true) end
+	halo:SetBlendMode("ADD")
+	halo:SetSize(46, 46)
+	halo:SetPoint("CENTER", icon, "CENTER", 0, 0)
+	halo:SetVertexColor(1, 0.90, 0.24)
+	halo:SetAlpha(0.64)
+	halo:Hide()
+	button.recoveryGlowHalo = halo
+	button.recoveryPulseElapsed = 0
 
 	button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 	button:SetScript("OnClick", function(_, mouseButton)
@@ -111,13 +169,14 @@ function addon:RegisterMinimapButton()
 	button.refreshElapsed = 0
 	button:SetScript("OnUpdate", function(self, elapsed)
 		if self.dragging then UpdateButtonFromCursor(self) end
+		UpdateGlowPulse(self, elapsed)
 		self.refreshElapsed = self.refreshElapsed + elapsed
 		if self.refreshElapsed >= REFRESH_INTERVAL then self.refreshElapsed = 0; RefreshGlow(self) end
 	end)
 
 	PositionButton(button, GetSavedAngle())
-	RefreshGlow(button)
 	self.minimapButton = button
+	RefreshGlow(button)
 	self:UpdateMinimapButtonVisibility()
 end
 
