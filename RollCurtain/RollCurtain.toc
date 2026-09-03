@@ -13,3 +13,5 @@ TransitionGuard.lua
 Settings.lua
 SettingsLayout.lua
 MinimapButton.lua
+Notifications.lua
+SettingsExtensions.lua
