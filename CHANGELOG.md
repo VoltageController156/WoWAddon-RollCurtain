@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.0.5
+
+### Added
+
+- Added an optional bonus-roll confirmation prompt, enabled by default, that shows the active loot specialization and the number of bonus-roll tokens that will remain after confirming.
+- Added a safe **Preview Confirmation** button so the confirmation UI can be inspected without an active roll or spending currency.
+- Added per-difficulty dungeon suppression controls for Normal, Heroic, Mythic, and Mythic+ beneath a top-level **Dungeons** switch.
+- Added named profiles with per-character profile assignment, including create, copy, rename, delete, and profile selection controls.
+- Added a **Show minimap button** setting that hides the minimap button without losing its saved per-character position.
+- Added a **Commands & Help** settings subpage documenting slash commands, aliases, minimap controls, and profile behavior.
+
+### Changed
+
+- Dungeons now use the same expandable parent/child settings behavior as Raids. Clearing the final selected dungeon difficulty automatically disables and collapses Dungeons.
+- Fresh installs and legacy enabled Dungeon settings suppress Normal, Heroic, and Mythic by default while leaving Mythic+ opt-in.
+- Reworked the Roll Curtain and Commands & Help settings pages with Blizzard-style scrolling so expanded controls and documentation remain readable without being compressed or clipped.
+- `/rc reset` now resets only the currently active profile.
+- `/rc status` now reports the active profile and bonus-roll confirmation state in addition to current content classification.
+- Existing flat Roll Curtain settings migrate into the Default profile, while the legacy minimap position migrates to per-character storage.
+
+### Fixed
+
+- Replaced the corrupted minimap icon asset with a verified PNG with transparent corners so the Roll Curtain die renders correctly without a green invalid-texture square or square background.
+- Corrected legacy false-value migration handling for old generic Dungeon and Raid settings.
+
 ## 0.0.4
 
 ### Fixed
