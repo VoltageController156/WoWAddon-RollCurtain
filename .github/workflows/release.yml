@@ -45,6 +45,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lua5.4
 
+      - name: Check Lua syntax
+        run: luac5.4 -p RollCurtain/*.lua tests/test_core.lua
+
       - name: Run tests
         run: lua5.4 tests/test_core.lua
 
