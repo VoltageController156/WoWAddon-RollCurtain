@@ -15,7 +15,7 @@
 
 - Dungeons now use the same expandable parent/child settings behavior as Raids. Clearing the final selected dungeon difficulty automatically disables and collapses Dungeons.
 - Fresh installs and legacy enabled Dungeon settings suppress Normal, Heroic, and Mythic by default while leaving Mythic+ opt-in.
-- Reworked the Settings layout so Dungeons and Raids can expand independently alongside Profile, Safety, and Interface controls.
+- Reworked the Roll Curtain and Commands & Help settings pages with Blizzard-style scrolling so expanded controls and documentation remain readable without being compressed or clipped.
 - `/rc reset` now resets only the currently active profile.
 - `/rc status` now reports the active profile and bonus-roll confirmation state in addition to current content classification.
 - Existing flat Roll Curtain settings migrate into the Default profile, while the legacy minimap position migrates to per-character storage.
