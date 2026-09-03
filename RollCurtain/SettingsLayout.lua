@@ -1,13 +1,15 @@
 local addonName, addon = ...
 
--- Keep the custom Settings canvas inside Blizzard's visible AddOns pane even
--- when both Dungeons and Raids are expanded. This file intentionally contains
--- layout-only behavior so profile/settings logic remains isolated in Settings.lua.
+-- Scrollable Blizzard Settings layout for Roll Curtain.
+-- Settings.lua owns behavior/state; this file only wraps the existing canvas
+-- panels in native ScrollFrames and positions their controls cleanly.
 
-local START_Y = -154
-local ROW_SPACING = 34
-local CHILD_ROW_SPACING = 38
-local SECTION_SPACING = 12
+local MAIN_PANEL_WIDTH = 608
+local VIEWPORT_HEIGHT = 560
+local START_Y = -176
+local ROW_SPACING = 44
+local CHILD_ROW_SPACING = 48
+local SECTION_SPACING = 26
 local CHILD_X_DUNGEON = { 62, 188, 314, 438 }
 local CHILD_X_RAID = { 62, 178, 288, 404, 520 }
 
@@ -38,12 +40,53 @@ local function SetTextPoint(fontString, x, y)
     fontString:SetPoint("TOPLEFT", x, y)
 end
 
+local function SetWrappedText(region, x, y, width)
+    if not region then return end
+    SetTextPoint(region, x, y)
+    if region.SetWidth then region:SetWidth(width) end
+    if region.SetJustifyH then region:SetJustifyH("LEFT") end
+    if region.SetJustifyV then region:SetJustifyV("TOP") end
+    if region.SetWordWrap then region:SetWordWrap(true) end
+end
+
+local function WrapPanelInScrollFrame(contentPanel, name)
+    if not contentPanel or not CreateFrame then
+        return contentPanel
+    end
+
+    local wrapper = CreateFrame("Frame")
+    wrapper:SetSize(650, VIEWPORT_HEIGHT)
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, wrapper, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -26, 0)
+
+    if contentPanel.SetParent then contentPanel:SetParent(scrollFrame) end
+    if contentPanel.ClearAllPoints then contentPanel:ClearAllPoints() end
+    contentPanel:SetPoint("TOPLEFT", 0, 0)
+    contentPanel:SetSize(MAIN_PANEL_WIDTH, contentPanel.GetHeight and contentPanel:GetHeight() or VIEWPORT_HEIGHT)
+
+    if scrollFrame.SetScrollChild then
+        scrollFrame:SetScrollChild(contentPanel)
+    end
+
+    if name == "Roll Curtain" then
+        addon.settingsScrollWrapper = wrapper
+        addon.settingsScrollFrame = scrollFrame
+    elseif name == "Commands & Help" then
+        addon.helpSettingsScrollWrapper = wrapper
+        addon.helpSettingsScrollFrame = scrollFrame
+    end
+
+    return wrapper
+end
+
 local function ApplyMainLayout()
     local panel = addon.settingsPanel
     local controls = addon.settingsControls
     if not panel or not controls then return end
 
-    panel:SetSize(650, 570)
+    if panel.SetWidth then panel:SetWidth(MAIN_PANEL_WIDTH) end
 
     local y = START_Y
     for _, key in ipairs({ "delves", "prey", "world" }) do
@@ -73,12 +116,15 @@ local function ApplyMainLayout()
     y = y - ROW_SPACING - SECTION_SPACING
 
     SetTextPoint(addon.safetyHeader, 18, y)
-    SetPoint(controls.confirmBonusRoll, 24, y - 28)
-    SetPoint(addon.previewButton, 352, y - 30)
-    y = y - 66
+    SetPoint(controls.confirmBonusRoll, 24, y - 34)
+    SetPoint(addon.previewButton, 24, y - 72)
+    y = y - 120
 
     SetTextPoint(addon.interfaceHeader, 18, y)
-    SetPoint(controls.showMinimapButton, 24, y - 28)
+    SetPoint(controls.showMinimapButton, 24, y - 34)
+
+    local contentHeight = math.max(VIEWPORT_HEIGHT, math.abs(y - 116))
+    if panel.SetHeight then panel:SetHeight(contentHeight) end
 end
 
 local function FindTextRegions(panel)
@@ -94,18 +140,17 @@ local function FindTextRegions(panel)
     return found
 end
 
-local function SetWrappedText(region, x, y, width)
-    if not region then return end
-    SetTextPoint(region, x, y)
-    if region.SetWidth then region:SetWidth(width) end
-end
-
 local function ApplyHelpLayout()
     local panel = addon.helpSettingsPanel
     if not panel then return end
 
-    panel:SetSize(650, 560)
+    if panel.SetWidth then panel:SetWidth(MAIN_PANEL_WIDTH) end
+    if panel.SetHeight then panel:SetHeight(720) end
+
     local text = FindTextRegions(panel)
+
+    SetWrappedText(text["Roll Curtain — Commands & Help"], 16, -16, 560)
+    SetWrappedText(text["All slash aliases use the same commands."], 16, -58, 560)
 
     local commands = {
         { "/rc", "Open Roll Curtain settings." },
@@ -114,27 +159,29 @@ local function ApplyHelpLayout()
         { "/rc reset", "Reset only the current profile to Roll Curtain defaults." },
     }
 
-    local y = -96
+    local y = -108
     for _, entry in ipairs(commands) do
-        SetWrappedText(text[entry[1]], 24, y, 116)
-        SetWrappedText(text[entry[2]], 154, y, 462)
-        y = y - 44
+        SetWrappedText(text[entry[1]], 24, y, 104)
+        SetWrappedText(text[entry[2]], 154, y, 410)
+        y = y - 52
     end
 
-    SetWrappedText(text["Aliases: /rollcurtain, /rcurtain, /rollc, /rc"], 24, y - 12, 592)
-    SetWrappedText(text["Minimap button"], 24, y - 62, 592)
+    SetWrappedText(text["Aliases: /rollcurtain, /rcurtain, /rollc, /rc"], 24, y - 8, 540)
+
+    SetWrappedText(text["Minimap button"], 24, y - 64, 540)
     SetWrappedText(
         text["Left-click opens settings. Right-click restores a hidden bonus-roll prompt. Drag to reposition it around the minimap."],
-        24,
-        y - 90,
-        592
+        36,
+        y - 96,
+        520
     )
-    SetWrappedText(text["Profiles"], 24, y - 140, 592)
+
+    SetWrappedText(text["Profiles"], 24, y - 170, 540)
     SetWrappedText(
         text["Each character is assigned to a named profile. Characters can share a profile, and changes to a shared profile apply to every character assigned to it."],
-        24,
-        y - 168,
-        592
+        36,
+        y - 202,
+        520
     )
 end
 
@@ -149,7 +196,33 @@ end
 local originalRegisterSettings = addon.RegisterSettings
 if type(originalRegisterSettings) == "function" then
     addon.RegisterSettings = function(self, ...)
-        local result = originalRegisterSettings(self, ...)
+        local originalCategoryRegistrar = Settings and Settings.RegisterCanvasLayoutCategory
+        local originalSubcategoryRegistrar = Settings and Settings.RegisterCanvasLayoutSubcategory
+
+        if originalCategoryRegistrar then
+            Settings.RegisterCanvasLayoutCategory = function(panel, name)
+                return originalCategoryRegistrar(WrapPanelInScrollFrame(panel, name), name)
+            end
+        end
+
+        if originalSubcategoryRegistrar then
+            Settings.RegisterCanvasLayoutSubcategory = function(category, panel, name)
+                return originalSubcategoryRegistrar(category, WrapPanelInScrollFrame(panel, name), name)
+            end
+        end
+
+        local ok, result = pcall(originalRegisterSettings, self, ...)
+
+        if originalCategoryRegistrar then
+            Settings.RegisterCanvasLayoutCategory = originalCategoryRegistrar
+        end
+        if originalSubcategoryRegistrar then
+            Settings.RegisterCanvasLayoutSubcategory = originalSubcategoryRegistrar
+        end
+
+        if not ok then
+            error(result)
+        end
 
         ApplyMainLayout()
         ApplyHelpLayout()
@@ -158,9 +231,6 @@ if type(originalRegisterSettings) == "function" then
             self.helpSettingsPanel:SetScript("OnShow", ApplyHelpLayout)
         end
 
-        -- Settings.lua owns the behavior of these controls. Wrap only the
-        -- layout-affecting click handlers so its state changes happen first,
-        -- then compact positioning is reapplied.
         if self.settingsControls then
             for _, key in ipairs({
                 "dungeonsEnabled",
