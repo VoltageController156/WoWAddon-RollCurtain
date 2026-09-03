@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.0.5
+
+### Added
+
+- Added an optional bonus-roll confirmation prompt, enabled by default, that shows the active loot specialization and the number of bonus-roll tokens that will remain after confirming.
+- Added per-difficulty dungeon suppression controls for Normal, Heroic, Mythic, and Mythic+ beneath a top-level **Dungeons** switch.
+- Fresh installs suppress Normal, Heroic, and Mythic dungeon bonus-roll prompts by default while leaving Mythic+ opt-in.
+
+### Changed
+
+- Dungeons now use the same expandable parent/child settings behavior as Raids. Clearing the final selected dungeon difficulty automatically disables and collapses Dungeons.
+- Existing generic Dungeon settings migrate without changing their previous behavior: enabled migrates to all known dungeon difficulties enabled; disabled migrates to all disabled.
+- Reworked settings layout so the Dungeons and Raids difficulty rows can expand independently without overlap.
+
+### Fixed
+
+- Replaced the corrupted minimap icon asset with a verified RGB PNG so the Roll Curtain die renders correctly instead of appearing as a green invalid-texture square.
+- Corrected legacy false-value migration handling for old generic Dungeon and Raid settings.
+
 ## 0.0.4
 
 ### Fixed
