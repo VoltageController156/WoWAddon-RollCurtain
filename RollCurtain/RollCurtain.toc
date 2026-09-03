@@ -17,3 +17,4 @@ Notifications.lua
 SettingsExtensions.lua
 ProfilesElvUILayout.lua
 ProfilesElvUISkin.lua
+CharacterIdentity.lua
