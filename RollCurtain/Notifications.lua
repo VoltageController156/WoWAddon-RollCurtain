@@ -103,17 +103,26 @@ function addon:NotifyBonusRollSuppressed(contentType)
 end
 
 function addon:RefreshMinimapRecoveryGlow()
+	local recoverable = type(self.CanRestoreHiddenBonusRoll) == "function"
+		and self:CanRestoreHiddenBonusRoll() == true
+	local preview = type(self.IsDebugRecoveryPreviewActive) == "function"
+		and self:IsDebugRecoveryPreviewActive() == true
+	local active = recoverable or preview
+
+	if type(self.SetMinimapRecoveryGlowActive) == "function" then
+		self:SetMinimapRecoveryGlowActive(active)
+		return
+	end
+
+	-- Compatibility fallback for older/minimal minimap implementations.
 	local button = self.minimapButton
 	local glow = button and button.recoveryGlow
 	if not glow then return end
-
-	local recoverable = type(self.CanRestoreHiddenBonusRoll) == "function"
-		and self:CanRestoreHiddenBonusRoll() == true
 	if type(glow.SetShown) == "function" then
-		glow:SetShown(recoverable)
-	elseif recoverable and type(glow.Show) == "function" then
+		glow:SetShown(active)
+	elseif active and type(glow.Show) == "function" then
 		glow:Show()
-	elseif not recoverable and type(glow.Hide) == "function" then
+	elseif not active and type(glow.Hide) == "function" then
 		glow:Hide()
 	end
 end
