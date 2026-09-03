@@ -6,6 +6,7 @@
 
 - Fixed previously suppressed bonus-roll prompts resurfacing when leaving a dungeon and entering the same or another instance while the original roll was still active.
 - Suppressed rolls now remain hidden across instance transitions until they expire or the player explicitly restores them with Roll Curtain.
+- Hardened transition handling for Blizzard's reused `BonusRollFrame` so a brand-new roll cannot accidentally inherit suppression state from an older hidden roll.
 
 ## 0.0.5
 
