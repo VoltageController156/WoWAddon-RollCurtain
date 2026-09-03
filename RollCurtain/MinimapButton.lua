@@ -4,6 +4,8 @@ local DEFAULT_ANGLE = 225
 local MINIMAP_RADIUS = 80
 local REFRESH_INTERVAL = 0.5
 local ICON_TEXTURE = "Interface\\AddOns\\RollCurtain\\Media\\MinimapIcon.png"
+local RECOVERY_RING_TEXTURE = "Interface\\Minimap\\MiniMap-TrackingBorder"
+local RECOVERY_HALO_TEXTURE = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 
 local function GetSavedAngle()
 	if type(addon.GetMinimapButtonAngle) == "function" then
@@ -45,11 +47,45 @@ local function UpdateButtonFromCursor(button)
 end
 
 local function HasRecoverableRoll()
+	if type(addon.IsDebugRecoveryPreviewActive) == "function" and addon:IsDebugRecoveryPreviewActive() == true then
+		return true
+	end
 	return type(addon.CanRestoreHiddenBonusRoll) == "function" and addon:CanRestoreHiddenBonusRoll() == true
 end
 
+function addon:SetMinimapRecoveryGlowActive(active)
+	local button = self.minimapButton
+	if not button then return end
+	active = active == true
+
+	local ring = button.recoveryGlow
+	local halo = button.recoveryGlowHalo
+	if ring then ring:SetShown(active) end
+	if halo then
+		halo:SetShown(active)
+		if active then halo:SetAlpha(0.35) end
+	end
+	if active then
+		button.recoveryPulseElapsed = button.recoveryPulseElapsed or 0
+	else
+		button.recoveryPulseElapsed = 0
+	end
+end
+
 local function RefreshGlow(button)
-	button.recoveryGlow:SetShown(HasRecoverableRoll())
+	addon:SetMinimapRecoveryGlowActive(HasRecoverableRoll())
+end
+
+local function UpdateGlowPulse(button, elapsed)
+	local ring = button.recoveryGlow
+	local halo = button.recoveryGlowHalo
+	if not ring or not halo or not ring:IsShown() then return end
+
+	button.recoveryPulseElapsed = (button.recoveryPulseElapsed or 0) + elapsed
+	local pulse = (math.sin(button.recoveryPulseElapsed * 3.2) + 1) * 0.5
+	-- Keep the gold ring crisp while the softer outer halo gently breathes.
+	ring:SetAlpha(0.88 + (pulse * 0.12))
+	halo:SetAlpha(0.20 + (pulse * 0.34))
 end
 
 local function ShowTooltip(button)
@@ -90,14 +126,32 @@ function addon:RegisterMinimapButton()
 	icon:SetTexCoord(0, 1, 0, 1)
 	button.icon = icon
 
-	local glow = button:CreateTexture(nil, "OVERLAY")
-	glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-	glow:SetBlendMode("ADD")
-	glow:SetSize(38, 38)
-	glow:SetPoint("CENTER")
-	glow:SetVertexColor(1, 0.82, 0)
-	glow:Hide()
-	button.recoveryGlow = glow
+	-- The old UI-ActionButton-Border texture was square. Use Blizzard's round
+	-- minimap tracking border instead, tinted warm gold, so the recovery state
+	-- follows the circular minimap icon cleanly even inside button collectors.
+	local ring = button:CreateTexture(nil, "OVERLAY")
+	ring:SetTexture(RECOVERY_RING_TEXTURE)
+	if type(ring.SetDesaturated) == "function" then ring:SetDesaturated(true) end
+	ring:SetBlendMode("ADD")
+	ring:SetSize(44, 44)
+	ring:SetPoint("CENTER")
+	ring:SetVertexColor(1, 0.72, 0.08)
+	ring:SetAlpha(0.95)
+	ring:Hide()
+	button.recoveryGlow = ring
+
+	-- A second circular highlight gives the ring a subtle breathing shine rather
+	-- than a flat border. It deliberately stays soft so the die art remains clear.
+	local halo = button:CreateTexture(nil, "OVERLAY")
+	halo:SetTexture(RECOVERY_HALO_TEXTURE)
+	halo:SetBlendMode("ADD")
+	halo:SetSize(42, 42)
+	halo:SetPoint("CENTER")
+	halo:SetVertexColor(1, 0.82, 0.18)
+	halo:SetAlpha(0.35)
+	halo:Hide()
+	button.recoveryGlowHalo = halo
+	button.recoveryPulseElapsed = 0
 
 	button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 	button:SetScript("OnClick", function(_, mouseButton)
@@ -111,13 +165,14 @@ function addon:RegisterMinimapButton()
 	button.refreshElapsed = 0
 	button:SetScript("OnUpdate", function(self, elapsed)
 		if self.dragging then UpdateButtonFromCursor(self) end
+		UpdateGlowPulse(self, elapsed)
 		self.refreshElapsed = self.refreshElapsed + elapsed
 		if self.refreshElapsed >= REFRESH_INTERVAL then self.refreshElapsed = 0; RefreshGlow(self) end
 	end)
 
 	PositionButton(button, GetSavedAngle())
-	RefreshGlow(button)
 	self.minimapButton = button
+	RefreshGlow(button)
 	self:UpdateMinimapButtonVisibility()
 end
 
