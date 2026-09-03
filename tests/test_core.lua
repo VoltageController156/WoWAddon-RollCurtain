@@ -8,134 +8,79 @@ local instanceType = "none"
 local difficultyID
 local closeCount = 0
 local restoreCount = 0
+local acceptCount = 0
 local currentTime = 1000
 local bonusRollShown = true
 local timerValue
 local chatMessages = {}
 local createdCheckboxes = {}
 local createdFontStrings = {}
+local popupShown
 
 SlashCmdList = {}
-DEFAULT_CHAT_FRAME = {
-	AddMessage = function(_, message)
-		table.insert(chatMessages, message)
-	end,
-}
+StaticPopupDialogs = {}
+CANCEL = "Cancel"
+DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) table.insert(chatMessages, message) end }
 UIParent = {}
 
 C_AddOns = {
 	GetAddOnMetadata = function(_, field)
-		if field == "Version" then
-			return "0.0.3"
-		elseif field == "Author" then
-			return "VoltageController156"
-		end
+		if field == "Version" then return "0.0.5" end
+		if field == "Author" then return "VoltageController156" end
 	end,
 }
 
-function strtrim(value)
-	return (value:gsub("^%s+", ""):gsub("%s+$", ""))
-end
+C_CurrencyInfo = {
+	GetCurrencyInfo = function() return { quantity = 3, iconFileID = 1 } end,
+}
 
-function time()
-	return currentTime
+function GetLootSpecialization() return 270 end
+function GetSpecializationInfoByID(id) return id, "Mistweaver" end
+function GetSpecialization() return 1 end
+function GetSpecializationInfo(index) return 270, "Mistweaver" end
+function strtrim(value) return (value:gsub("^%s+", ""):gsub("%s+$", "")) end
+function time() return currentTime end
+
+function StaticPopup_Show(key, textArg1, _, data)
+	popupShown = { key = key, text = textArg1, data = data }
+	return popupShown
 end
 
 local function NewFontString()
 	local fontString = { shown = true, text = "" }
-
-	function fontString:SetPoint(...)
-		self.point = { ... }
-	end
-
-	function fontString:SetText(text)
-		self.text = text
-	end
-
-	function fontString:Show()
-		self.shown = true
-	end
-
-	function fontString:Hide()
-		self.shown = false
-	end
-
+	function fontString:SetPoint(...) self.point = { ... } end
+	function fontString:SetText(text) self.text = text end
+	function fontString:Show() self.shown = true end
+	function fontString:Hide() self.shown = false end
 	table.insert(createdFontStrings, fontString)
 	return fontString
 end
 
 function CreateFrame(frameType, _, _, template)
-	local frame = {
-		frameType = frameType,
-		template = template,
-		scripts = {},
-		shown = true,
-		checked = false,
-	}
-
+	local frame = { frameType = frameType, template = template, scripts = {}, shown = true, checked = false }
 	function frame:RegisterEvent() end
-
 	function frame:SetScript(scriptName, callback)
 		self.scripts[scriptName] = callback
-		if scriptName == "OnEvent" and not eventHandler then
-			eventHandler = callback
-		end
+		if scriptName == "OnEvent" and not eventHandler then eventHandler = callback end
 	end
-
-	function frame:SetSize(width, height)
-		self.width = width
-		self.height = height
-	end
-
-	function frame:SetPoint(...)
-		self.point = { ... }
-	end
-
-	function frame:ClearAllPoints()
-		self.point = nil
-	end
-
-	function frame:SetText(text)
-		self.text = text
-	end
-
-	function frame:CreateFontString()
-		return NewFontString()
-	end
-
-	function frame:SetChecked(value)
-		self.checked = value == true
-	end
-
-	function frame:GetChecked()
-		return self.checked
-	end
-
-	function frame:Show()
-		self.shown = true
-	end
-
-	function frame:Hide()
-		self.shown = false
-	end
-
-	function frame:IsShown()
-		return self.shown
-	end
-
-	if frameType == "CheckButton" then
-		table.insert(createdCheckboxes, frame)
-	end
-
+	function frame:GetScript(scriptName) return self.scripts[scriptName] end
+	function frame:SetSize(width, height) self.width, self.height = width, height end
+	function frame:SetPoint(...) self.point = { ... } end
+	function frame:ClearAllPoints() self.point = nil end
+	function frame:SetText(text) self.text = text end
+	function frame:CreateFontString() return NewFontString() end
+	function frame:SetChecked(value) self.checked = value == true end
+	function frame:GetChecked() return self.checked end
+	function frame:Show() self.shown = true end
+	function frame:Hide() self.shown = false end
+	function frame:IsShown() return self.shown end
+	if frameType == "CheckButton" then table.insert(createdCheckboxes, frame) end
 	return frame
 end
 
 function hooksecurefunc(name, callback)
-	if name == "BonusRollFrame_StartBonusRoll" then
-		bonusRollHook = callback
-	elseif name == "SetItemRef" then
-		chatLinkHook = callback
-	end
+	if name == "BonusRollFrame_StartBonusRoll" then bonusRollHook = callback
+	elseif name == "SetItemRef" then chatLinkHook = callback end
 end
 
 function BonusRollFrame_StartBonusRoll() end
@@ -143,8 +88,16 @@ function BonusRollFrame_CloseBonusRoll()
 	closeCount = closeCount + 1
 	bonusRollShown = false
 end
-
 function SetItemRef() end
+
+local rollButton = { scripts = {}, enabled = true }
+rollButton.scripts.OnClick = function()
+	acceptCount = acceptCount + 1
+end
+function rollButton:GetScript(name) return self.scripts[name] end
+function rollButton:SetScript(name, callback) self.scripts[name] = callback end
+function rollButton:Enable() self.enabled = true end
+function rollButton:Disable() self.enabled = false end
 
 GroupLootContainer = {}
 function GroupLootContainer_AddFrame(_, frame)
@@ -155,47 +108,35 @@ end
 
 BonusRollFrame = {
 	state = "prompt",
+	spellID = 123,
 	endTime = currentTime + 60,
 	remaining = 60,
+	CurrentCountFrame = { currencyID = 777 },
 	PromptFrame = {
-		Timer = {
-			SetValue = function(_, value)
-				timerValue = value
-			end,
-		},
+		RollButton = rollButton,
+		Timer = { SetValue = function(_, value) timerValue = value end },
 	},
 	IsShown = function() return bonusRollShown end,
 }
 
-local function FireBonusRoll()
+local function FireBonusRoll(cost)
 	bonusRollShown = true
 	BonusRollFrame.state = "prompt"
+	BonusRollFrame.spellID = 123
 	BonusRollFrame.endTime = currentTime + 60
 	BonusRollFrame.remaining = 60
+	BonusRollFrame.CurrentCountFrame.currencyID = 777
 	timerValue = 60
-	bonusRollHook()
+	bonusRollHook(123, "", 60, 777, cost or 1, difficultyID)
 end
 
-C_QuestLog = {
-	GetActivePreyQuest = function() return activePreyQuest end,
-}
-
-C_DelvesUI = {
-	HasActiveDelve = function() return activeDelve end,
-}
-
-C_PartyInfo = {
-	IsDelveInProgress = function() return false end,
-}
-
-function GetInstanceInfo()
-	return "Test Instance", instanceType, difficultyID
-end
+C_QuestLog = { GetActivePreyQuest = function() return activePreyQuest end }
+C_DelvesUI = { HasActiveDelve = function() return activeDelve end }
+C_PartyInfo = { IsDelveInProgress = function() return false end }
+function GetInstanceInfo() return "Test Instance", instanceType, difficultyID end
 
 Settings = {
-	RegisterCanvasLayoutCategory = function()
-		return { GetID = function() return 1 end }
-	end,
+	RegisterCanvasLayoutCategory = function() return { GetID = function() return 1 end } end,
 	RegisterAddOnCategory = function() end,
 	OpenToCategory = function() end,
 	GetSetting = function() return nil end,
@@ -204,206 +145,198 @@ Settings = {
 assert(loadfile("RollCurtain/Core.lua"))("RollCurtain", addon)
 assert(loadfile("RollCurtain/Settings.lua"))("RollCurtain", addon)
 assert(eventHandler, "Core did not register an event handler")
-
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
 
-assert(RollCurtainDB.delves == true, "Delves should be hidden by default")
-assert(RollCurtainDB.prey == true, "Prey should be hidden by default")
-assert(RollCurtainDB.world == true, "Outdoor prompts should be hidden by default")
-assert(RollCurtainDB.dungeons == false, "Dungeons should remain visible by default")
-assert(RollCurtainDB.raidsEnabled == false, "Raids master switch should be disabled by default")
-assert(RollCurtainDB.raidStory == false, "Story Mode raids should remain visible by default")
-assert(RollCurtainDB.raidLFR == false, "LFR raids should remain visible by default")
-assert(RollCurtainDB.raidNormal == false, "Normal raids should remain visible by default")
-assert(RollCurtainDB.raidHeroic == false, "Heroic raids should remain visible by default")
-assert(RollCurtainDB.raidMythic == false, "Mythic raids should remain visible by default")
-assert(RollCurtainDB.raids == nil, "Legacy raid setting should not remain in the database")
-assert(RollCurtainDB.scenarios == false, "Other scenarios should remain visible by default")
-assert(#createdCheckboxes == 11, "Expected eleven custom settings checkboxes")
-assert(bonusRollHook, "Bonus-roll hook was not installed")
-assert(chatLinkHook, "Chat-link hook was not installed")
-assert(addon.settingsControls, "Custom settings controls were not created")
-assert(SLASH_ROLLCURTAIN1 == "/rollcurtain", "Primary slash command missing")
-assert(SLASH_ROLLCURTAIN2 == "/rcurtain", "Secondary slash command missing")
-assert(SLASH_ROLLCURTAIN3 == "/rc", "Short /rc alias missing")
-assert(SLASH_ROLLCURTAIN4 == "/rollc", "Short /rollc alias missing")
+-- Fresh 0.0.5 defaults.
+assert(RollCurtainDB.delves == true)
+assert(RollCurtainDB.prey == true)
+assert(RollCurtainDB.world == true)
+assert(RollCurtainDB.dungeonsEnabled == true, "Dungeons should be enabled by default")
+assert(RollCurtainDB.dungeonNormal == true, "Normal dungeons should be hidden by default")
+assert(RollCurtainDB.dungeonHeroic == true, "Heroic dungeons should be hidden by default")
+assert(RollCurtainDB.dungeonMythic == true, "Mythic dungeons should be hidden by default")
+assert(RollCurtainDB.dungeonMythicPlus == false, "Mythic+ should remain visible by default")
+assert(RollCurtainDB.raidsEnabled == false)
+assert(RollCurtainDB.raidStory == false)
+assert(RollCurtainDB.raidLFR == false)
+assert(RollCurtainDB.raidNormal == false)
+assert(RollCurtainDB.raidHeroic == false)
+assert(RollCurtainDB.raidMythic == false)
+assert(RollCurtainDB.scenarios == false)
+assert(RollCurtainDB.confirmBonusRoll == true, "Bonus-roll confirmation should be enabled by default")
+assert(RollCurtainDB.dungeons == nil)
+assert(RollCurtainDB.raids == nil)
+assert(#createdCheckboxes == 16, "Expected sixteen custom settings checkboxes")
+assert(bonusRollHook and chatLinkHook, "Required hooks were not installed")
+assert(addon.confirmBonusRollHookInstalled, "Bonus-roll confirmation hook was not installed")
 
 for _, checkbox in ipairs(createdCheckboxes) do
-	assert(checkbox.template == "SettingsCheckboxTemplate", "Settings checkbox should use SettingsCheckboxTemplate")
+	assert(checkbox.template == "SettingsCheckboxTemplate")
 end
 
-for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
-	assert(addon.settingsControls[key].shown == false, key .. " should be hidden while Raids is disabled")
-	assert(addon.settingsControls[key].label.shown == false, key .. " label should be hidden while Raids is disabled")
+for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
+	assert(addon.settingsControls[key].shown == true, key .. " should show while Dungeons is enabled")
 end
-assert(addon.settingsControls.scenarios.point[3] == -316, "Other scenarios should move up while raid children are hidden")
+for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
+	assert(addon.settingsControls[key].shown == false, key .. " should hide while Raids is disabled")
+end
+assert(addon.settingsControls.confirmBonusRoll:GetChecked() == true)
 
 local foundMetadata = false
 for _, fontString in ipairs(createdFontStrings) do
-	if fontString.text:find("0.0.3", 1, true) and fontString.text:find("VoltageController156", 1, true) then
-		foundMetadata = true
-		break
-	end
+	if fontString.text:find("0.0.5", 1, true) and fontString.text:find("VoltageController156", 1, true) then foundMetadata = true end
 end
-assert(foundMetadata, "Settings should display version 0.0.3 and author")
+assert(foundMetadata, "Settings should display version 0.0.5 and author")
 
-local raids = addon.settingsControls.raidsEnabled
-raids:SetChecked(true)
-raids.scripts.OnClick(raids)
-assert(RollCurtainDB.raidsEnabled == true, "Raids master switch was not enabled")
-assert(RollCurtainDB.raidStory == true, "Story Mode should be selected when Raids is enabled")
-assert(RollCurtainDB.raidLFR == false, "LFR should remain opt-in")
-assert(RollCurtainDB.raidNormal == false, "Normal should remain opt-in")
-assert(RollCurtainDB.raidHeroic == false, "Heroic should remain opt-in")
-assert(RollCurtainDB.raidMythic == false, "Mythic should remain opt-in")
-
+-- Dungeon parent/child layout and behavior.
+local dungeons = addon.settingsControls.dungeonsEnabled
+local dungeonNormal = addon.settingsControls.dungeonNormal
+local dungeonHeroic = addon.settingsControls.dungeonHeroic
+local dungeonMythic = addon.settingsControls.dungeonMythic
+local dungeonMythicPlus = addon.settingsControls.dungeonMythicPlus
 local previousX
-for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
+for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
 	local checkbox = addon.settingsControls[key]
-	assert(checkbox.shown == true, key .. " should be visible while Raids is enabled")
-	assert(checkbox.point[3] == -324, key .. " should share the raid-row Y position")
-	local x = checkbox.point[2]
-	if previousX then
-		assert(x > previousX, "Raid difficulty checkboxes should be laid out left-to-right")
-	end
-	previousX = x
+	if previousX then assert(checkbox.point[2] > previousX, "Dungeon difficulties should be horizontal") end
+	previousX = checkbox.point[2]
 end
-assert(addon.settingsControls.scenarios.point[3] == -376, "Other scenarios should move down while raid children are visible")
 
+dungeons:SetChecked(false)
+dungeons.scripts.OnClick(dungeons)
+assert(RollCurtainDB.dungeonsEnabled == false)
+for _, key in ipairs({ "dungeonNormal", "dungeonHeroic", "dungeonMythic", "dungeonMythicPlus" }) do
+	assert(RollCurtainDB[key] == false)
+	assert(addon.settingsControls[key].shown == false)
+end
+
+dungeons:SetChecked(true)
+dungeons.scripts.OnClick(dungeons)
+assert(RollCurtainDB.dungeonNormal == true)
+assert(RollCurtainDB.dungeonHeroic == true)
+assert(RollCurtainDB.dungeonMythic == true)
+assert(RollCurtainDB.dungeonMythicPlus == false)
+
+dungeonNormal:SetChecked(false); dungeonNormal.scripts.OnClick(dungeonNormal)
+dungeonHeroic:SetChecked(false); dungeonHeroic.scripts.OnClick(dungeonHeroic)
+assert(RollCurtainDB.dungeonsEnabled == true)
+dungeonMythic:SetChecked(false); dungeonMythic.scripts.OnClick(dungeonMythic)
+assert(RollCurtainDB.dungeonsEnabled == false, "Dungeons should disable when final selected child is cleared")
+assert(dungeons:GetChecked() == false)
+
+-- Raid behavior remains unchanged.
+local raids = addon.settingsControls.raidsEnabled
+raids:SetChecked(true); raids.scripts.OnClick(raids)
+assert(RollCurtainDB.raidsEnabled == true and RollCurtainDB.raidStory == true)
 local story = addon.settingsControls.raidStory
-local lfr = addon.settingsControls.raidLFR
-local heroic = addon.settingsControls.raidHeroic
-lfr:SetChecked(true)
-lfr.scripts.OnClick(lfr)
-heroic:SetChecked(true)
-heroic.scripts.OnClick(heroic)
-assert(RollCurtainDB.raidLFR == true, "LFR checkbox did not update the database")
-assert(RollCurtainDB.raidHeroic == true, "Heroic checkbox did not update the database")
+story:SetChecked(false); story.scripts.OnClick(story)
+assert(RollCurtainDB.raidsEnabled == false, "Raids should disable when final selected child is cleared")
 
-story:SetChecked(false)
-story.scripts.OnClick(story)
-assert(RollCurtainDB.raidsEnabled == true, "Raids should remain enabled while another child is selected")
-lfr:SetChecked(false)
-lfr.scripts.OnClick(lfr)
-assert(RollCurtainDB.raidsEnabled == true, "Raids should remain enabled while Heroic is selected")
-heroic:SetChecked(false)
-heroic.scripts.OnClick(heroic)
-assert(RollCurtainDB.raidsEnabled == false, "Raids should auto-disable when the last difficulty is deselected")
-assert(raids:GetChecked() == false, "Raids checkbox should visually auto-deselect")
-assert(addon.settingsControls.scenarios.point[3] == -316, "Other scenarios should move up when Raids auto-disables")
-
-raids:SetChecked(true)
-raids.scripts.OnClick(raids)
-assert(RollCurtainDB.raidStory == true, "Re-enabling Raids should select Story Mode again")
-lfr:SetChecked(true)
-lfr.scripts.OnClick(lfr)
-raids:SetChecked(false)
-raids.scripts.OnClick(raids)
-for _, key in ipairs({ "raidStory", "raidLFR", "raidNormal", "raidHeroic", "raidMythic" }) do
-	assert(RollCurtainDB[key] == false, key .. " should be cleared when Raids is disabled")
-	assert(addon.settingsControls[key].shown == false, key .. " should hide when Raids is disabled")
-end
-
-activePreyQuest = 12345
-activeDelve = true
-instanceType = "raid"
-assert(addon:GetCurrentContentType() == "prey", "Prey should have classification priority")
-
+-- Classification, including explicit dungeon difficulties.
+activePreyQuest = 12345; activeDelve = true; instanceType = "raid"
+assert(addon:GetCurrentContentType() == "prey")
 activePreyQuest = nil
-assert(addon:GetCurrentContentType() == "delves", "Active Delve was not detected")
-
-activeDelve = false
-instanceType = "party"
-assert(addon:GetCurrentContentType() == "dungeons", "Dungeon was not detected")
-
+assert(addon:GetCurrentContentType() == "delves")
+activeDelve = false; instanceType = "party"
+difficultyID = 1; assert(addon:GetCurrentContentType() == "dungeonNormal")
+difficultyID = 2; assert(addon:GetCurrentContentType() == "dungeonHeroic")
+difficultyID = 23; assert(addon:GetCurrentContentType() == "dungeonMythic")
+difficultyID = 8; assert(addon:GetCurrentContentType() == "dungeonMythicPlus")
+difficultyID = 24; assert(addon:GetCurrentContentType() == "dungeons", "Unknown dungeon difficulty should fail open")
 instanceType = "raid"
-difficultyID = 220
-assert(addon:GetCurrentContentType() == "raidStory", "Story Mode raid was not detected")
-difficultyID = 17
-assert(addon:GetCurrentContentType() == "raidLFR", "LFR raid was not detected")
-difficultyID = 14
-assert(addon:GetCurrentContentType() == "raidNormal", "Normal raid was not detected")
-difficultyID = 15
-assert(addon:GetCurrentContentType() == "raidHeroic", "Heroic raid was not detected")
-difficultyID = 16
-assert(addon:GetCurrentContentType() == "raidMythic", "Mythic raid was not detected")
-difficultyID = nil
-assert(addon:GetCurrentContentType() == "raids", "Unknown raid difficulty should fail open")
+difficultyID = 220; assert(addon:GetCurrentContentType() == "raidStory")
+difficultyID = 17; assert(addon:GetCurrentContentType() == "raidLFR")
+difficultyID = 14; assert(addon:GetCurrentContentType() == "raidNormal")
+difficultyID = 15; assert(addon:GetCurrentContentType() == "raidHeroic")
+difficultyID = 16; assert(addon:GetCurrentContentType() == "raidMythic")
+difficultyID = nil; assert(addon:GetCurrentContentType() == "raids")
 
-instanceType = "scenario"
-assert(addon:GetCurrentContentType() == "scenarios", "Scenario was not detected")
-instanceType = "none"
-assert(addon:GetCurrentContentType() == "world", "Outdoor content was not detected")
-instanceType = "pvp"
-assert(addon:GetCurrentContentType() == "unknown", "Unknown content should fail open")
-
+-- Restore behavior still works.
+RollCurtainDB.delves = true
 activeDelve = true
 FireBonusRoll()
-assert(closeCount == 1, "Enabled Delve suppression did not close the prompt")
-assert(not bonusRollShown, "Suppressed bonus roll should be hidden")
-assert(addon.hiddenBonusRoll, "Suppressed bonus roll was not recorded for recovery")
-assert(chatMessages[#chatMessages]:find("Bonus roll hidden ", 1, true), "Concise hidden-roll message was not printed")
-assert(chatMessages[#chatMessages]:find("Show Bonus Roll Prompt", 1, true), "Recovery chat link was not printed")
-assert(not chatMessages[#chatMessages]:find("hidden in", 1, true), "Hidden-roll message should not include activity context")
-
+assert(closeCount == 1 and not bonusRollShown and addon.hiddenBonusRoll)
+assert(chatMessages[#chatMessages]:find("Show Bonus Roll Prompt", 1, true))
 currentTime = currentTime + 15
 SlashCmdList.ROLLCURTAIN("show")
-assert(restoreCount == 1, "Slash command did not restore the hidden prompt")
-assert(bonusRollShown, "Restored bonus roll should be visible")
-assert(addon.hiddenBonusRoll == nil, "Recovered bonus-roll state was not cleared")
-assert(BonusRollFrame.remaining == 45, "Restored roll did not synchronize its remaining time")
-assert(timerValue == 45, "Restored roll timer did not synchronize its displayed value")
+assert(restoreCount == 1 and bonusRollShown)
+assert(BonusRollFrame.remaining == 45 and timerValue == 45)
 
-FireBonusRoll()
-assert(closeCount == 2, "Second Delve suppression did not close the prompt")
-chatLinkHook("rollcurtain:show")
-assert(restoreCount == 2, "Clickable chat link did not restore the hidden prompt")
-assert(bonusRollShown, "Chat-link recovery should show the bonus roll")
+-- Dungeon suppression defaults and Mythic+ opt-in.
+currentTime = 1000; activeDelve = false; instanceType = "party"
+RollCurtainDB.dungeonsEnabled = true
+RollCurtainDB.dungeonNormal = true
+RollCurtainDB.dungeonHeroic = true
+RollCurtainDB.dungeonMythic = true
+RollCurtainDB.dungeonMythicPlus = false
+difficultyID = 1; FireBonusRoll(); assert(closeCount == 2, "Normal dungeon should suppress by default")
+difficultyID = 8; FireBonusRoll(); assert(closeCount == 2, "Mythic+ should fail open by default")
+RollCurtainDB.dungeonMythicPlus = true; FireBonusRoll(); assert(closeCount == 3, "Enabled Mythic+ should suppress")
+difficultyID = 24; FireBonusRoll(); assert(closeCount == 3, "Unknown dungeon difficulty should fail open")
 
-FireBonusRoll()
-assert(closeCount == 3, "Third Delve suppression did not close the prompt")
+-- Bonus-roll confirmation: show spec and post-spend token count, then accept exactly once.
+RollCurtainDB.dungeonMythicPlus = false
+difficultyID = 8
+RollCurtainDB.confirmBonusRoll = true
+popupShown = nil
+FireBonusRoll(1)
+local beforeAccept = acceptCount
+rollButton.scripts.OnClick(rollButton)
+assert(popupShown, "Confirmation popup was not shown")
+assert(acceptCount == beforeAccept, "Roll should not be accepted before confirmation")
+assert(popupShown.text:find("Mistweaver", 1, true), "Loot spec missing from confirmation")
+assert(popupShown.text:find("Bonus rolls remaining", 1, true), "Remaining-token label missing")
+assert(popupShown.text:find("2", 1, true), "Post-spend token count should be shown")
+StaticPopupDialogs[popupShown.key].OnAccept(nil, popupShown.data)
+assert(acceptCount == beforeAccept + 1, "Confirm should invoke Blizzard's original roll click once")
+
+-- Disabling the safety option restores one-click behavior.
+RollCurtainDB.confirmBonusRoll = false
+popupShown = nil
+local beforeDirect = acceptCount
+rollButton.scripts.OnClick(rollButton)
+assert(acceptCount == beforeDirect + 1, "Disabled confirmation should call original click immediately")
+assert(popupShown == nil, "Disabled confirmation should not show a popup")
+
+-- Expired rolls cannot be accepted from a stale confirmation.
+RollCurtainDB.confirmBonusRoll = true
+popupShown = nil
+FireBonusRoll(1)
+rollButton.scripts.OnClick(rollButton)
+local beforeExpiredAccept = acceptCount
 currentTime = BonusRollFrame.endTime + 1
-SlashCmdList.ROLLCURTAIN("show")
-assert(restoreCount == 2, "Expired bonus roll should not be restored")
-assert(addon.hiddenBonusRoll == nil, "Expired recovery state was not cleared")
-assert(chatMessages[#chatMessages]:find("no longer available", 1, true), "Expired roll did not report a clean failure")
+StaticPopupDialogs[popupShown.key].OnAccept(nil, popupShown.data)
+assert(acceptCount == beforeExpiredAccept, "Expired confirmation should not spend a roll")
+assert(chatMessages[#chatMessages]:find("no longer available", 1, true))
 
-currentTime = 1000
-activeDelve = false
-instanceType = "party"
-FireBonusRoll()
-assert(closeCount == 3, "Disabled dungeon suppression closed the prompt")
+-- Migration: preserve old generic dungeon choices exactly.
+RollCurtainDB = { dungeons = false }
+eventHandler(nil, "ADDON_LOADED", "RollCurtain")
+assert(RollCurtainDB.dungeonsEnabled == false)
+assert(RollCurtainDB.dungeonNormal == false and RollCurtainDB.dungeonHeroic == false and RollCurtainDB.dungeonMythic == false and RollCurtainDB.dungeonMythicPlus == false)
+assert(RollCurtainDB.confirmBonusRoll == true, "Existing users should receive confirmation enabled by default")
+assert(RollCurtainDB.dungeons == nil)
 
-RollCurtainDB.dungeons = true
-FireBonusRoll()
-assert(closeCount == 4, "Enabled dungeon suppression did not close the prompt")
+RollCurtainDB = { dungeons = true }
+eventHandler(nil, "ADDON_LOADED", "RollCurtain")
+assert(RollCurtainDB.dungeonsEnabled == true)
+assert(RollCurtainDB.dungeonNormal == true and RollCurtainDB.dungeonHeroic == true and RollCurtainDB.dungeonMythic == true and RollCurtainDB.dungeonMythicPlus == true, "Legacy enabled dungeons should preserve all-dungeon behavior")
 
-instanceType = "raid"
-difficultyID = 17
-RollCurtainDB.raidsEnabled = false
-RollCurtainDB.raidLFR = true
-FireBonusRoll()
-assert(closeCount == 4, "Disabled Raids master switch should fail open")
-
-RollCurtainDB.raidsEnabled = true
-FireBonusRoll()
-assert(closeCount == 5, "Enabled raid master + LFR child did not suppress the prompt")
-
+-- Existing raid migrations remain intact.
 RollCurtainDB = { raidLFR = true, raidMythic = false }
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.raidsEnabled == true, "0.0.2 raid choices should enable the new Raids master switch")
-assert(RollCurtainDB.raidLFR == true, "0.0.2 LFR preference was not preserved")
-assert(RollCurtainDB.raidStory == false, "Migration should not invent a Story Mode choice")
-assert(RollCurtainDB.raidMythic == false, "Existing Mythic preference was overwritten")
+assert(RollCurtainDB.raidsEnabled == true)
+assert(RollCurtainDB.raidLFR == true and RollCurtainDB.raidStory == false and RollCurtainDB.raidMythic == false)
 
 RollCurtainDB = { raids = true, raidMythic = false }
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
-assert(RollCurtainDB.raidsEnabled == true, "Legacy raid setting was not migrated to the Raids master switch")
-assert(RollCurtainDB.raidStory == true, "Legacy raid setting was not migrated to Story Mode")
-assert(RollCurtainDB.raidLFR == true, "Legacy raid setting was not migrated to LFR")
-assert(RollCurtainDB.raidNormal == true, "Legacy raid setting was not migrated to Normal")
-assert(RollCurtainDB.raidHeroic == true, "Legacy raid setting was not migrated to Heroic")
-assert(RollCurtainDB.raidMythic == false, "Existing per-difficulty setting was overwritten")
-assert(RollCurtainDB.raids == nil, "Legacy raid setting was not removed after migration")
+assert(RollCurtainDB.raidsEnabled == true)
+assert(RollCurtainDB.raidStory == true and RollCurtainDB.raidLFR == true and RollCurtainDB.raidNormal == true and RollCurtainDB.raidHeroic == true)
+assert(RollCurtainDB.raidMythic == false)
+assert(RollCurtainDB.raids == nil)
+
+assert(SLASH_ROLLCURTAIN1 == "/rollcurtain")
+assert(SLASH_ROLLCURTAIN2 == "/rcurtain")
+assert(SLASH_ROLLCURTAIN3 == "/rc")
+assert(SLASH_ROLLCURTAIN4 == "/rollc")
 
 print("Roll Curtain tests passed")
