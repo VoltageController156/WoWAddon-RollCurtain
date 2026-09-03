@@ -93,9 +93,9 @@ local function InitializeDatabase()
 		RollCurtainDB = {}
 	end
 
-	-- 0.0.4 and earlier used one generic dungeon toggle. Preserve that exact
-	-- behavior for existing users: false becomes all dungeon difficulties off;
-	-- true becomes all known dungeon difficulties on, including Mythic+.
+	-- 0.0.4 and earlier used one generic dungeon toggle. Migrate it into the
+	-- new per-difficulty defaults: false becomes all dungeon difficulties off;
+	-- true enables Normal, Heroic, and Mythic while leaving Mythic+ opt-in.
 	local legacyDungeonValue
 	if type(RollCurtainDB.dungeons) == "boolean" then
 		legacyDungeonValue = RollCurtainDB.dungeons
@@ -140,7 +140,7 @@ local function InitializeDatabase()
 					RollCurtainDB[key] = defaultValue
 				end
 			elseif DUNGEON_SETTING_KEYS[key] and legacyDungeonValue ~= nil then
-				RollCurtainDB[key] = legacyDungeonValue
+				RollCurtainDB[key] = legacyDungeonValue == true and key ~= "dungeonMythicPlus"
 			elseif key == "raidsEnabled" then
 				if legacyRaidValue ~= nil then
 					RollCurtainDB[key] = legacyRaidValue
