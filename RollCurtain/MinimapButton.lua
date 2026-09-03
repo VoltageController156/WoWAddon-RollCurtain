@@ -45,6 +45,9 @@ local function UpdateButtonFromCursor(button)
 end
 
 local function HasRecoverableRoll()
+	if type(addon.IsDebugRecoveryPreviewActive) == "function" and addon:IsDebugRecoveryPreviewActive() == true then
+		return true
+	end
 	return type(addon.CanRestoreHiddenBonusRoll) == "function" and addon:CanRestoreHiddenBonusRoll() == true
 end
 
