@@ -63,7 +63,7 @@ function addon:SetMinimapRecoveryGlowActive(active)
 	if ring then ring:SetShown(active) end
 	if halo then
 		halo:SetShown(active)
-		if active then halo:SetAlpha(0.52) end
+		if active then halo:SetAlpha(0.64) end
 	end
 	if active then
 		button.recoveryPulseElapsed = button.recoveryPulseElapsed or 0
@@ -83,10 +83,10 @@ local function UpdateGlowPulse(button, elapsed)
 
 	button.recoveryPulseElapsed = (button.recoveryPulseElapsed or 0) + elapsed
 	local pulse = (math.sin(button.recoveryPulseElapsed * 2.8) + 1) * 0.5
-	-- Keep a strong, crisp gold circle at all times and let the larger outer
-	-- halo breathe enough to be noticeable without turning into a flashing box.
-	ring:SetAlpha(0.92 + (pulse * 0.08))
-	halo:SetAlpha(0.34 + (pulse * 0.46))
+	-- Keep the centered ring crisp, but give both layers a little more visual
+	-- energy so an available recovery is obvious without changing its size.
+	ring:SetAlpha(0.96 + (pulse * 0.04))
+	halo:SetAlpha(0.44 + (pulse * 0.46))
 end
 
 local function ShowTooltip(button)
@@ -137,8 +137,8 @@ function addon:RegisterMinimapButton()
 	ring:SetBlendMode("ADD")
 	ring:SetSize(36, 36)
 	ring:SetPoint("CENTER", icon, "CENTER", 0, 0)
-	ring:SetVertexColor(1, 0.76, 0.08)
-	ring:SetAlpha(0.96)
+	ring:SetVertexColor(1, 0.82, 0.12)
+	ring:SetAlpha(1.0)
 	ring:Hide()
 	button.recoveryGlow = ring
 
@@ -151,8 +151,8 @@ function addon:RegisterMinimapButton()
 	halo:SetBlendMode("ADD")
 	halo:SetSize(46, 46)
 	halo:SetPoint("CENTER", icon, "CENTER", 0, 0)
-	halo:SetVertexColor(1, 0.84, 0.16)
-	halo:SetAlpha(0.52)
+	halo:SetVertexColor(1, 0.90, 0.24)
+	halo:SetAlpha(0.64)
 	halo:Hide()
 	button.recoveryGlowHalo = halo
 	button.recoveryPulseElapsed = 0
