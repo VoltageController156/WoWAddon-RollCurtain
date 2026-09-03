@@ -57,7 +57,11 @@ function addon:CreateProfile(name)
 	local profile = {}
 	for key, defaultValue in pairs(self.defaults) do
 		local value = source and source[key]
-		profile[key] = type(value) == "boolean" and value or defaultValue
+		if type(value) == "boolean" then
+			profile[key] = value
+		else
+			profile[key] = defaultValue
+		end
 	end
 
 	RollCurtainDB.profiles[name] = profile
