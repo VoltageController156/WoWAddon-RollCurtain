@@ -157,7 +157,7 @@ assert(RollCurtainDB.dungeonHeroic == true, "Heroic dungeons should be hidden by
 assert(RollCurtainDB.dungeonMythic == true, "Mythic dungeons should be hidden by default")
 assert(RollCurtainDB.dungeonMythicPlus == false, "Mythic+ should remain visible by default")
 assert(RollCurtainDB.raidsEnabled == false)
-assert(RollCurrtainDB.raidStory == false)
+assert(RollCurtainDB.raidStory == false)
 assert(RollCurtainDB.raidLFR == false)
 assert(RollCurtainDB.raidNormal == false)
 assert(RollCurtainDB.raidHeroic == false)
@@ -319,7 +319,7 @@ assert(RollCurtainDB.dungeons == nil)
 RollCurtainDB = { dungeons = true }
 eventHandler(nil, "ADDON_LOADED", "RollCurtain")
 assert(RollCurtainDB.dungeonsEnabled == true)
-assert(RollCurtainDB.dungeonNormal == true and RollCurrtainDB.dungeonHeroic == true and RollCurtainDB.dungeonMythic == true and RollCurtainDB.dungeonMythicPlus == false, "Legacy enabled dungeons should leave Mythic+ opt-in")
+assert(RollCurtainDB.dungeonNormal == true and RollCurtainDB.dungeonHeroic == true and RollCurtainDB.dungeonMythic == true and RollCurtainDB.dungeonMythicPlus == false, "Legacy enabled dungeons should leave Mythic+ opt-in")
 
 -- Existing raid migrations remain intact.
 RollCurtainDB = { raidLFR = true, raidMythic = false }
