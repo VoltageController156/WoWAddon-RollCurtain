@@ -10,4 +10,5 @@
 
 Core.lua
 Settings.lua
+SettingsLayout.lua
 MinimapButton.lua
