@@ -46,10 +46,15 @@ jobs:
           sudo apt-get install -y lua5.4
 
       - name: Check Lua syntax
-        run: luac5.4 -p RollCurtain/*.lua tests/test_core.lua
+        run: luac5.4 -p RollCurtain/*.lua tests/test_*.lua
 
       - name: Run tests
-        run: lua5.4 tests/test_core.lua
+        shell: bash
+        run: |
+          for test_file in tests/test_*.lua; do
+            echo "Running $test_file"
+            lua5.4 "$test_file"
+          done
 
       - name: Package add-on
         if: github.event_name != 'pull_request'
