@@ -20,3 +20,4 @@ ProfilesElvUILayout.lua
 ProfilesElvUISkin.lua
 CharacterIdentity.lua
 Debug.lua
+DebugMinimap.lua
