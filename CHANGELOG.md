@@ -8,6 +8,7 @@
 - Added profile-backed, multi-select **Chat Notifications** destinations. General is enabled by default, with optional local routing for Loot, System, Say, Yell, Party, Raid, Instance, Guild, Officer, Whisper, Battle.net Whisper, Emote, and Channel Messages.
 - Added a **Debug** settings page for beta/development builds with optional event logging and a diagnostic snapshot covering build channel, profile, content detection, difficulty, suppression state, hidden-roll state, chat destinations, and minimap recovery state.
 - Added `/rc debug on`, `/rc debug off`, `/rc debug status`, and `/rc debug dump` diagnostics. Stable builds retain these support commands but keep debug disabled, session-only, and hidden from the Settings UI.
+- Added a safe **Test Recovery Glow (15 sec)** debug preview and `/rc debug glow` so the minimap recovery indicator can be tested without creating or spending a real bonus roll.
 
 ### Changed
 
@@ -16,6 +17,7 @@
 - Renamed the character/profile summary to **Profile Assignments** and simplified the list so each profile is followed directly by its assigned characters.
 - Updated the suppressed-roll notification to `Roll Curtain: Bonus roll suppressed - <Content> - [Restore Bonus Roll]` with the existing clickable restore behavior.
 - Chat destination settings only control local chat-window display and never transmit Roll Curtain notifications to other players.
+- Reworked the minimap recovery indicator from the square action-button border into a circular warm-gold ring with a subtle pulsing outer shine, better matching the round Roll Curtain icon and minimap-button collectors.
 - The minimap recovery glow now refreshes immediately when a roll is suppressed or restored and continues to follow the hidden roll until it expires or becomes unavailable.
 - Established a persistent beta release channel for pre-production testing before stable releases are promoted to `main`.
 - Packaged builds now stamp an explicit release channel so beta diagnostics are exposed only in beta/development builds while stable packages identify themselves as `release`.
