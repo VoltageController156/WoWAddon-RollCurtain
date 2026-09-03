@@ -79,14 +79,20 @@ jobs:
             lua5.4 "$test_file"
           done
 
-      - name: Stamp packaged add-on version
+      - name: Stamp packaged add-on metadata
         if: github.event_name != 'pull_request'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
         run: |
           sed -i -E "s/^## Version:.*/## Version: $VERSION/" RollCurtain/RollCurtain.toc
-          grep '^## Version:' RollCurtain/RollCurtain.toc
+          if grep -q '^## X-Release-Channel:' RollCurtain/RollCurtain.toc; then
+            sed -i -E "s/^## X-Release-Channel:.*/## X-Release-Channel: $CHANNEL/" RollCurtain/RollCurtain.toc
+          else
+            sed -i "/^## Version:/a ## X-Release-Channel: $CHANNEL" RollCurtain/RollCurtain.toc
+          fi
+          grep -E '^## (Version|X-Release-Channel):' RollCurtain/RollCurtain.toc
 
       - name: Package add-on
         if: github.event_name != 'pull_request'
