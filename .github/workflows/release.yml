@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - main
+      - beta
     paths:
       - "RollCurtain/**"
       - "tests/**"
       - "CHANGELOG.md"
       - ".github/workflows/release.yml"
   pull_request:
+    branches:
+      - main
+      - beta
     paths:
       - "RollCurtain/**"
       - "tests/**"
@@ -27,18 +31,37 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Read add-on version
+      - name: Resolve release version
         id: version
         shell: bash
         run: |
-          version="$(awk -F': ' '/^## Version:/ { print $2; exit }' RollCurtain/RollCurtain.toc | tr -d '\r')"
-          if [[ -z "$version" ]]; then
-            echo "Unable to read ## Version from RollCurtain.toc" >&2
+          base_version="$(awk -F': ' '/^## Version:/ { print $2; exit }' RollCurtain/RollCurtain.toc | tr -d '\r')"
+          if [[ -z "$base_version" ]]; then
+            echo "Unable to read ## Version from RollCurtain/RollCurtain.toc" >&2
             exit 1
           fi
+
+          channel="release"
+          version="$base_version"
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF_NAME" == "beta" ]]; then
+            channel="beta"
+            git fetch --tags --force
+            latest_beta="$(git tag -l "v${base_version}-beta.*" \
+              | sed -n "s/^v${base_version//./\\.}-beta\.\([0-9][0-9]*\)$/\1/p" \
+              | sort -n \
+              | tail -n 1)"
+            next_beta=$(( ${latest_beta:-0} + 1 ))
+            version="${base_version}-beta.${next_beta}"
+          fi
+
+          echo "base_version=$base_version" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Install Lua
         run: |
@@ -56,26 +79,51 @@ jobs:
             lua5.4 "$test_file"
           done
 
+      - name: Stamp packaged add-on version
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sed -i -E "s/^## Version:.*/## Version: $VERSION/" RollCurtain/RollCurtain.toc
+          grep '^## Version:' RollCurtain/RollCurtain.toc
+
       - name: Package add-on
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          version="${{ steps.version.outputs.version }}"
-          zip -r "RollCurtain-$version.zip" RollCurtain
+          zip -r "RollCurtain-$VERSION.zip" RollCurtain
 
       - name: Build release notes
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          BASE_VERSION: ${{ steps.version.outputs.base_version }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
         run: |
-          version="${{ steps.version.outputs.version }}"
-          awk -v version="$version" '
+          awk -v version="$BASE_VERSION" '
             $0 == "## " version { capture=1; next }
             capture && /^## / { exit }
             capture { print }
-          ' CHANGELOG.md > RELEASE_NOTES.md
+          ' CHANGELOG.md > RELEASE_NOTES_BODY.md
 
-          if [[ ! -s RELEASE_NOTES.md ]]; then
-            echo "Roll Curtain $version" > RELEASE_NOTES.md
+          if [[ ! -s RELEASE_NOTES_BODY.md ]]; then
+            echo "Development build for Roll Curtain $BASE_VERSION." > RELEASE_NOTES_BODY.md
+          fi
+
+          if [[ "$CHANNEL" == "beta" ]]; then
+            {
+              echo "**Beta build:** $VERSION"
+              echo
+              echo "This is a pre-release build intended for testing before promotion to the stable channel."
+              echo
+              cat RELEASE_NOTES_BODY.md
+            } > RELEASE_NOTES.md
+          else
+            cp RELEASE_NOTES_BODY.md RELEASE_NOTES.md
           fi
 
       - name: Check for existing GitHub release
@@ -98,16 +146,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
         shell: bash
         run: |
+          prerelease_args=()
+          if [[ "$CHANNEL" == "beta" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
           gh release create "$TAG" \
             "RollCurtain-$VERSION.zip#RollCurtain-$VERSION.zip" \
             --target "$GITHUB_SHA" \
             --title "Roll Curtain v$VERSION" \
-            --notes-file RELEASE_NOTES.md
+            --notes-file RELEASE_NOTES.md \
+            "${prerelease_args[@]}"
 
       - name: Refresh existing GitHub release
-        if: github.event_name == 'push' && steps.existing.outputs.exists == 'true' && contains(github.event.head_commit.message, '[refresh-release]')
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.version.outputs.channel == 'release' && steps.existing.outputs.exists == 'true' && contains(github.event.head_commit.message, '[refresh-release]')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
