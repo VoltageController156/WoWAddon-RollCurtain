@@ -3,6 +3,7 @@
 ## Notes: Hides bonus-roll prompts in the content types you choose.
 ## Author: VoltageController156
 ## Version: 0.0.7
+## X-Release-Channel: development
 ## SavedVariables: RollCurtainDB
 ## X-Category: Loot
 ## X-License: MIT
@@ -18,3 +19,4 @@ SettingsExtensions.lua
 ProfilesElvUILayout.lua
 ProfilesElvUISkin.lua
 CharacterIdentity.lua
+Debug.lua
