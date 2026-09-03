@@ -2,8 +2,17 @@
 
 ## 0.0.7
 
+### Added
+
+- Added a dedicated **Profiles** settings page with current-profile selection, create, copy, rename, delete, and a per-profile list of assigned characters.
+- Added profile-backed, multi-select **Chat Notifications** destinations. General is enabled by default, with optional local routing for Loot, System, Say, Yell, Party, Raid, Instance, Guild, Officer, Whisper, Battle.net Whisper, Emote, and Channel Messages.
+
 ### Changed
 
+- New profiles now begin as a copy of the currently active profile instead of resetting to Roll Curtain defaults.
+- Updated the suppressed-roll notification to `Roll Curtain: Bonus roll suppressed - <Content> - [Restore Bonus Roll]` with the existing clickable restore behavior.
+- Chat destination settings only control local chat-window display and never transmit Roll Curtain notifications to other players.
+- The minimap recovery glow now refreshes immediately when a roll is suppressed or restored and continues to follow the hidden roll until it expires or becomes unavailable.
 - Established a persistent beta release channel for pre-production testing before stable releases are promoted to `main`.
 
 ## 0.0.6
