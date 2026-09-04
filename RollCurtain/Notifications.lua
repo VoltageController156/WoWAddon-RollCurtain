@@ -132,6 +132,20 @@ end
 -- shorter. Core's StartBonusRoll hook calls this method dynamically.
 function addon:HideCurrentPromptIfConfigured()
 	if not BonusRollFrame or not BonusRollFrame:IsShown() or BonusRollFrame.state ~= "prompt" then return end
+
+	-- Blizzard may call StartBonusRoll again for the same still-active prompt when
+	-- zoning. The transition guard already knows how to identify that reconstructed
+	-- copy. Close it again, but preserve the original hidden record and do not send
+	-- another chat notification or reclassify it based on the new zone.
+	if type(self.IsCurrentBonusRollAlreadySuppressed) == "function"
+		and self:IsCurrentBonusRollAlreadySuppressed(BonusRollFrame) then
+		if type(BonusRollFrame_CloseBonusRoll) == "function" then
+			BonusRollFrame_CloseBonusRoll()
+		end
+		self:RefreshMinimapRecoveryGlow()
+		return
+	end
+
 	local shouldHide, contentType = self:ShouldHideCurrentPrompt()
 	if shouldHide and type(BonusRollFrame_CloseBonusRoll) == "function" then
 		self.hiddenBonusRoll = { frame = BonusRollFrame, contentType = contentType }

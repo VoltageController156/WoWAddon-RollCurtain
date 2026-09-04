@@ -7,6 +7,7 @@
 - Fixed suppressed bonus-roll prompts resurfacing after teleporting or zoning into another dungeon while the original roll was still active.
 - Treats Blizzard's reconstructed copy of the same active bonus roll as the existing suppressed roll even when its rebuilt expiration timestamp drifts by a few seconds.
 - Keeps protection against a genuinely new bonus roll inheriting stale suppression state when Blizzard reuses `BonusRollFrame`.
+- Prevented the suppression chat notification from being sent again when Blizzard reconstructs the same already-hidden roll during zone transitions; the original content label and restore state are preserved.
 
 ## 0.0.7
 
