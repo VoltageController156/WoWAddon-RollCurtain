@@ -16,7 +16,7 @@ local BUILTIN_SOUNDS = {
 
 local function GetSharedMedia()
 	if not LibStub then return nil end
-	local ok, library = pcall(LibStub, "LibSharedMedia-3.0", true)
+	local ok, library = pcall(function() return LibStub("LibSharedMedia-3.0", true) end)
 	if ok then return library end
 	return nil
 end
