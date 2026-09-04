@@ -1,10 +1,39 @@
+<div align="center">
+
 # Roll Curtain
 
 <img src="assets/roll-curtain-icon.png" alt="Roll Curtain icon" width="180">
 
-Roll Curtain is a lightweight World of Warcraft Retail add-on that hides bonus-roll prompts in the activities you choose, lets you recover a hidden prompt before it expires, and can require confirmation before a bonus-roll token is spent.
+**Hide unwanted bonus-roll prompts by activity type and raid difficulty.**
 
-By default, fresh installs hide the prompt in:
+<p>
+  <a href="https://www.curseforge.com/wow/addons/roll-curtain"><img alt="CurseForge" src="https://img.shields.io/badge/CurseForge-Roll%20Curtain-F16436?logo=curseforge&logoColor=white"></a>
+  <a href="https://github.com/VoltageController156/WoWAddon-RollCurtain/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/VoltageController156/WoWAddon-RollCurtain?display_name=tag&sort=semver&label=Release"></a>
+  <a href="https://github.com/VoltageController156/WoWAddon-RollCurtain/actions/workflows/release.yml?query=branch%3Abeta"><img alt="Beta CI" src="https://github.com/VoltageController156/WoWAddon-RollCurtain/actions/workflows/release.yml/badge.svg?branch=beta"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="https://worldofwarcraft.blizzard.com/"><img alt="WoW Retail" src="https://img.shields.io/badge/WoW-Retail%2012.1.x-7d5fff"></a>
+</p>
+
+[CurseForge](https://www.curseforge.com/wow/addons/roll-curtain) • [Releases](https://github.com/VoltageController156/WoWAddon-RollCurtain/releases) • [Changelog](CHANGELOG.md) • [Report a Bug](https://github.com/VoltageController156/WoWAddon-RollCurtain/issues/new)
+
+</div>
+
+Roll Curtain is a lightweight World of Warcraft Retail add-on that hides bonus-roll prompts in the activities you choose, keeps suppressed rolls recoverable until they expire, and can add a confirmation step before a bonus-roll token is spent.
+
+## Highlights
+
+- Activity-specific suppression for Delves, Prey hunts, outdoor content, dungeons, raids, and scenarios.
+- Per-difficulty controls for Normal, Heroic, Mythic, and Mythic+ dungeons and Story, LFR, Normal, Heroic, and Mythic raids.
+- Recoverable hidden rolls with a clickable **[Restore Bonus Roll]** chat link and minimap recovery indicator.
+- Optional confirmation before spending a bonus-roll token, including loot specialization and remaining token count.
+- Named, shareable profiles with per-character assignments.
+- Profile-backed **Chat Notifications** routing for local chat-window display.
+- Persistent beta builds and diagnostics for testing changes before stable release.
+- No Ace3 or other addon libraries required.
+
+## Default behavior
+
+Fresh installs suppress bonus-roll prompts in:
 
 - Delves
 - Prey hunts
@@ -17,91 +46,78 @@ Mythic+, raids, and other scenarios remain visible unless you enable those optio
 
 ## Configuration
 
-Open **Options → AddOns → Roll Curtain** to configure the active profile for your character.
+Open **Options → AddOns → Roll Curtain**. Roll Curtain uses Blizzard's modern Settings panel and separates general options, profiles, help, and beta diagnostics where appropriate.
 
 ### Profiles
 
-Roll Curtain includes dependency-free named profiles.
+Roll Curtain includes dependency-free named profiles for sharing settings between characters.
 
-- Every character starts on the **Default** profile unless assigned to another profile.
-- Create named profiles for different play styles or groups of characters.
-- Characters can share a profile; changes to a shared profile apply to every character assigned to it.
-- Profiles can be created, copied, renamed, deleted, and selected directly from the Roll Curtain settings page.
-- The **Default** profile cannot be renamed or deleted.
+- Every character starts on **Default** unless assigned to another profile.
+- New profiles begin as a copy of the currently active profile.
+- Profiles can be created, copied, renamed, deleted, and selected from the dedicated **Profiles** page.
+- **Profile Assignments** shows which characters are currently using each profile.
+- Changes to a shared profile apply to every character assigned to it.
+- **Default** cannot be renamed or deleted.
 - `/rc reset` resets only the currently active profile.
-- Profile assignments and settings are stored in SavedVariables and persist through logouts, reloads, and addon updates.
 
-The minimap button position is saved per character rather than per profile.
+The minimap button position remains character-specific rather than profile-specific.
 
-### Dungeons
+### Chat Notifications
 
-Dungeon suppression uses a top-level **Dungeons** switch with a horizontal row for:
+Roll Curtain can route its local suppression/restore notices to one or more chat-window destinations. **General** is enabled by default.
 
-- Normal
-- Heroic
-- Mythic
-- Mythic+
+Optional destinations include Loot, System, Say, Yell, Party, Raid, Instance, Guild, Officer, Whisper, Battle.net Whisper, Emote, and Channel Messages.
 
-On a fresh install, Normal, Heroic, and Mythic are selected while Mythic+ remains opt-in. Turning Dungeons off clears all four difficulties. If the final selected dungeon difficulty is cleared manually, the Dungeons switch turns off and the row collapses.
+These settings only control where Roll Curtain displays its own local messages. They do **not** send addon notifications to other players or transmit anything into those channels.
 
-Existing users upgrading from the old generic Dungeons option migrate to Normal, Heroic, and Mythic enabled when the old option was enabled; Mythic+ remains opt-in.
+### Dungeons and raids
 
-### Raids
+**Dungeons** exposes Normal, Heroic, Mythic, and Mythic+ controls. Normal, Heroic, and Mythic are enabled by default while Mythic+ remains opt-in.
 
-Raid suppression uses a top-level **Raids** switch. Enabling it reveals Story, LFR, Normal, Heroic, and Mythic options in a horizontal row. Story is selected automatically when Raids is first enabled; the other difficulties remain opt-in.
+**Raids** exposes Story, LFR, Normal, Heroic, and Mythic controls. Story is selected when raid suppression is first enabled; the remaining difficulties are opt-in.
+
+If the final selected child difficulty is cleared, its parent category disables and collapses automatically.
 
 ### Bonus-roll confirmation
 
 **Confirm before using a bonus roll** is enabled by default in the Safety section.
 
-When you click Blizzard's bonus-roll die, Roll Curtain shows a confirmation containing:
+When you click Blizzard's bonus-roll die, Roll Curtain can show:
 
-- Your active loot specialization
-- The number of bonus-roll tokens that will remain after the roll
+- Your active loot specialization.
+- The number of bonus-roll tokens that will remain after the roll.
 
-**Confirm** proceeds through Blizzard's normal bonus-roll action. **Cancel** leaves the original bonus-roll prompt available. Disabling the setting restores Blizzard's normal one-click behavior.
-
-Use **Preview Confirmation** in Settings to inspect the confirmation window safely without spending a token or requiring an active bonus-roll prompt.
+**Confirm** proceeds through Blizzard's normal bonus-roll action. **Cancel** leaves the original prompt available. **Preview Confirmation** lets you inspect the confirmation UI safely without requiring an active roll or spending currency.
 
 ### Minimap button
 
-Roll Curtain includes a draggable minimap button with a die icon.
+The draggable minimap button provides quick access to Roll Curtain and hidden-roll recovery.
 
 - **Left-click:** open Roll Curtain settings.
-- **Right-click:** restore a recoverable hidden bonus-roll prompt.
-- The button glows while a hidden bonus roll can still be restored.
-- Its position is saved per character.
-- **Show minimap button** can hide the button without forgetting its saved position.
-- The button is designed to work with generic minimap-button collectors.
+- **Right-click:** restore the current recoverable hidden roll.
+- A circular gold recovery glow appears while a hidden roll can still be restored.
+- Position is saved per character.
+- **Show minimap button** hides the button without forgetting its position.
+- Generic minimap-button collectors are supported.
 
 ### Commands & Help
 
-Roll Curtain registers a **Commands & Help** subpage under its AddOns settings entry so the slash commands and minimap controls are available in-game.
+Roll Curtain registers a **Commands & Help** subpage in-game. All aliases use the same command handler:
 
-All four slash aliases use the same command handler:
+`/rollcurtain` • `/rcurtain` • `/rollc` • `/rc`
 
-- `/rollcurtain`
-- `/rcurtain`
-- `/rollc`
-- `/rc`
-
-Available subcommands:
-
-- `status` — show the active profile, current activity classification, Curtain state, and confirmation state.
-- `show` — restore the most recently hidden bonus-roll prompt if it is still active.
-- `reset` — restore only the active profile to Roll Curtain's defaults.
-
-For example: `/rc show` or `/rollcurtain status`.
+| Command | Purpose |
+| --- | --- |
+| `/rc` | Open Roll Curtain settings. |
+| `/rc status` | Show the active profile, detected content, Curtain state, and confirmation state. |
+| `/rc show` | Restore the current hidden bonus-roll prompt if it is still active. |
+| `/rc reset` | Reset only the active profile to Roll Curtain defaults. |
 
 ## Recovering a hidden bonus roll
 
-When Roll Curtain suppresses a bonus-roll prompt, chat shows:
+When Roll Curtain suppresses a roll, its local notification includes a clickable **[Restore Bonus Roll]** link. The same roll can also be restored with `/rc show` or by right-clicking the minimap button.
 
-**Bonus roll hidden [Show Bonus Roll Prompt]**
-
-Click **[Show Bonus Roll Prompt]** to restore Blizzard's original prompt while it is still active. Restoring it does **not** perform the roll and does not spend currency; you must still click Blizzard's Roll button yourself.
-
-The hidden prompt continues to expire normally while suppressed, and Roll Curtain synchronizes the remaining timer when the prompt is restored.
+Restoring a hidden prompt does **not** perform the roll or spend currency. The original Blizzard prompt returns with its remaining timer synchronized, and the hidden roll continues to expire normally while suppressed.
 
 ## Installation
 
@@ -110,24 +126,53 @@ The hidden prompt continues to expire normally while suppressed, and Roll Curtai
 3. Restart World of Warcraft or type `/reload` if the game is already running.
 4. Enable **Roll Curtain** in the AddOns list.
 
+## Beta builds and testing
+
+Roll Curtain uses a persistent pre-release channel so changes can be exercised before they reach stable users.
+
+- `main` represents the stable production release.
+- `beta` represents the current pre-production test line.
+- GitHub publishes beta builds as prereleases such as `0.0.8-beta.1` and `0.0.8-beta.2`.
+- Packaged beta builds display their exact beta version in-game.
+- Beta/development builds expose a **Debug** settings page with optional event logging, diagnostic snapshots, and safe recovery-glow testing.
+- Stable releases keep diagnostic support available through commands while leaving debug disabled and out of the normal Settings UI.
+
+Useful beta diagnostics include `/rc debug on`, `/rc debug off`, `/rc debug status`, `/rc debug dump`, and `/rc debug glow`.
+
+Beta builds are intended for testers who are comfortable helping validate behavior before promotion to the stable release channel.
+
 ## Activity detection
 
-- **Delves:** detected through Blizzard's active-Delve APIs.
-- **Prey hunts:** detected through Blizzard's active-Prey-quest API.
-- **World bosses / outdoor content:** any bonus-roll prompt received outside an instance.
-- **Dungeons:** detected from Blizzard's instance type and difficulty ID, with explicit Normal, Heroic, Mythic, and Mythic+ controls. Unrecognized dungeon difficulties fail open.
-- **Raids:** detected from the current instance type and Blizzard difficulty ID, with separate Story, LFR, Normal, Heroic, and Mythic controls beneath the Raids master switch.
-- **Other scenarios:** detected from the current instance type after Delves are excluded.
-- **Unknown content:** the prompt remains visible as a safety fallback.
+- **Delves:** Blizzard's active-Delve APIs.
+- **Prey hunts:** Blizzard's active-Prey-quest API.
+- **World bosses / outdoor content:** bonus-roll prompts received outside an instance.
+- **Dungeons:** instance type and Blizzard difficulty ID, with explicit Normal, Heroic, Mythic, and Mythic+ controls.
+- **Raids:** instance type and Blizzard difficulty ID, with Story, LFR, Normal, Heroic, and Mythic controls.
+- **Other scenarios:** current instance type after Delves are excluded.
+- **Unknown content:** fails open and leaves the prompt visible as a safety fallback.
 
-If a Prey hunt is active while you complete a different outdoor encounter, that prompt may be classified as Prey because Blizzard's bonus-roll event does not include a distinct activity type.
+Unrecognized dungeon difficulties also fail open. If a Prey hunt is active while you complete a different outdoor encounter, Blizzard's bonus-roll event may not provide enough information to distinguish the activity, so the prompt can be classified as Prey.
+
+## Reporting bugs
+
+Please use [GitHub Issues](https://github.com/VoltageController156/WoWAddon-RollCurtain/issues/new) for reproducible bugs or unexpected behavior.
+
+Include as much of the following as possible:
+
+- Roll Curtain version, including the full beta version when applicable.
+- World of Warcraft Retail version.
+- Activity and difficulty where the issue occurred.
+- Whether the bonus-roll prompt was suppressed, restored, resurfaced, or expired.
+- What you expected to happen and what happened instead.
+- Reproduction steps.
+- Any relevant `/rc debug dump` output when testing a beta build.
 
 ## Compatibility
 
-- World of Warcraft Retail 12.1.x
-- Uses Blizzard's modern Settings panel.
-- Optional ElvUI checkbox skin integration; native Blizzard settings remain the fallback.
-- No Ace3 or other addon libraries are required.
+- World of Warcraft Retail 12.1.x.
+- Blizzard's modern Settings panel.
+- Optional ElvUI checkbox skin integration with native Blizzard styling as the fallback.
+- No Ace3 or other addon libraries required.
 
 ## License
 
