@@ -5,6 +5,7 @@ local shouldHide = true
 local contentType = "dungeonMythic"
 local bonusRollShown = true
 local closeCount = 0
+local alreadySuppressed = false
 
 addon.defaults = {
 	delves = true,
@@ -56,6 +57,7 @@ end
 function addon:RefreshProfileConsumers() refreshCount = refreshCount + 1 end
 function addon:ShouldHideCurrentPrompt() return shouldHide, contentType end
 function addon:CanRestoreHiddenBonusRoll() return recoverable end
+function addon:IsCurrentBonusRollAlreadySuppressed() return alreadySuppressed end
 function addon:ShowHiddenBonusRoll()
 	recoverable = false
 	self.hiddenBonusRoll = nil
@@ -149,6 +151,21 @@ assert(closeCount == 1 and addon.hiddenBonusRoll and not bonusRollShown)
 assert(#primaryMessages == beforeGeneral + 1)
 assert(primaryMessages[#primaryMessages]:find("Bonus roll suppressed - Mythic Dungeon -", 1, true))
 assert(primaryMessages[#primaryMessages]:find("[Restore Bonus Roll]", 1, true))
+
+-- Reconstructing that same active roll during a zone transition should close it
+-- again without sending another notification or changing its original content.
+local originalHiddenRoll = addon.hiddenBonusRoll
+bonusRollShown = true
+contentType = "world"
+alreadySuppressed = true
+local beforeRepeatedSuppression = #primaryMessages
+addon:HideCurrentPromptIfConfigured()
+assert(closeCount == 2 and not bonusRollShown, "Reconstructed suppressed roll should be closed again")
+assert(#primaryMessages == beforeRepeatedSuppression, "Reconstructed suppressed roll must not resend chat notification")
+assert(addon.hiddenBonusRoll == originalHiddenRoll, "Existing hidden-roll record should be preserved")
+assert(addon.hiddenBonusRoll.contentType == "dungeonMythic", "Zone context must not reclassify the original hidden roll")
+alreadySuppressed = false
+contentType = "dungeonMythic"
 
 -- The minimap glow follows recoverability and clears immediately on restore.
 local glow = { shown = false }
