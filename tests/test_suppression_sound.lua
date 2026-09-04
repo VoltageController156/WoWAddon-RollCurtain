@@ -58,11 +58,25 @@ assert(not foundNone)
 assert(addon:PreviewSuppressionSound() == true)
 assert(playedKit and playedKit.id == 100 and playedKit.channel == "SFX")
 
+-- Previewing a menu option must not change the selected sound.
+playedKit = nil
+assert(addon:PreviewSuppressionSoundKey("builtin:ready-check") == true)
+assert(playedKit and playedKit.id == 102 and playedKit.channel == "SFX")
+assert(addon:GetSelectedSuppressionSoundKey() == "builtin:bonus-roll")
+assert(RollCurtainDB.suppressionSoundSelection == nil)
+
 assert(addon:SetSelectedSuppressionSound("lsm:AirHorn (DBM)") == true)
 assert(RollCurtainDB.suppressionSoundSelection == "lsm:AirHorn (DBM)")
 assert(addon:GetSelectedSuppressionSoundLabel() == "AirHorn (DBM)")
 assert(addon:PreviewSuppressionSound() == true)
 assert(playedFile and playedFile.path == sharedSounds["AirHorn (DBM)"] and playedFile.channel == "SFX")
+
+-- Per-row preview can audition a different SharedMedia sound without selecting it.
+playedFile = nil
+assert(addon:PreviewSuppressionSoundKey("lsm:BigWigs: Alert") == true)
+assert(playedFile and playedFile.path == sharedSounds["BigWigs: Alert"])
+assert(addon:GetSelectedSuppressionSoundKey() == "lsm:AirHorn (DBM)")
+assert(RollCurtainDB.suppressionSoundSelection == "lsm:AirHorn (DBM)")
 
 playedFile = nil
 enabled = false
@@ -73,5 +87,6 @@ assert(addon:PlaySuppressionSound() == true)
 assert(playedFile and playedFile.path == sharedSounds["AirHorn (DBM)"])
 
 assert(addon:SetSelectedSuppressionSound("lsm:Missing") == false)
+assert(addon:PreviewSuppressionSoundKey("lsm:Missing") == false)
 
 print("Roll Curtain suppression sound tests passed")

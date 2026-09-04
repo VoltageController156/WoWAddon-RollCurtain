@@ -117,9 +117,12 @@ local function PlayResolvedSound(sound)
 	return false
 end
 
+function addon:PreviewSuppressionSoundKey(key)
+	return PlayResolvedSound(self:ResolveSuppressionSound(key))
+end
+
 function addon:PreviewSuppressionSound()
-	local sound = self:ResolveSuppressionSound(self:GetSelectedSuppressionSoundKey())
-	return PlayResolvedSound(sound)
+	return self:PreviewSuppressionSoundKey(self:GetSelectedSuppressionSoundKey())
 end
 
 function addon:PlaySuppressionSound()

@@ -11,6 +11,10 @@
 - Added a suppression-sound picker with built-in Blizzard sounds, optional LibSharedMedia-3.0 sounds registered by other installed addons, and a **Test Sound** preview button.
 - Added a per-character **What's New** panel for meaningful release lines; beta suffix updates within the same feature line do not repeatedly show it.
 
+### Changed
+
+- Reworked the suppression-sound picker into a compact DBM-style 200px scrollable menu. Each sound now has a speaker preview button on the right, and selecting a sound no longer automatically plays it.
+
 ### Fixed
 
 - Fixed suppressed bonus-roll prompts resurfacing after teleporting or zoning into another dungeon while the original roll was still active.

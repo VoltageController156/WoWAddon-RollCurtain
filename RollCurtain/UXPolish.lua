@@ -1,6 +1,8 @@
 local addonName, addon = ...
 
 local SOUND_SELECTOR_SHIFT = 64
+local SOUND_MENU_HEIGHT = 200
+local SPEAKER_TEXTURE = 130979 -- interface/common/voicechat-speaker
 
 local function ShiftFrameDown(frame, amount)
 	if not frame or type(frame.GetPoint) ~= "function" or type(frame.SetPoint) ~= "function" then return end
@@ -10,10 +12,67 @@ local function ShiftFrameDown(frame, amount)
 	frame:SetPoint(point, relativeTo, relativePoint, x or 0, y - amount)
 end
 
+local function AttachSoundPreviewButton(description, soundKey)
+	if not description or type(description.AddInitializer) ~= "function" then return end
+	description:AddInitializer(function(menuButton)
+		if not menuButton then return end
+
+		local playButton = menuButton.rollCurtainPlayButton
+		if not playButton then
+			if type(menuButton.AttachFrame) == "function" then
+				playButton = menuButton:AttachFrame("Button")
+			else
+				playButton = CreateFrame("Button", nil, menuButton)
+			end
+			if not playButton then return end
+
+			playButton:SetSize(16, 16)
+			playButton:SetPoint("RIGHT", -5, 0)
+
+			local texture
+			if type(playButton.AttachTexture) == "function" then
+				texture = playButton:AttachTexture()
+			elseif type(playButton.CreateTexture) == "function" then
+				texture = playButton:CreateTexture(nil, "ARTWORK")
+			end
+			if texture then
+				texture:SetAllPoints()
+				texture:SetTexture(SPEAKER_TEXTURE)
+				texture:SetVertexColor(0.8, 0.8, 0.8)
+				playButton:SetScript("OnEnter", function()
+					texture:SetVertexColor(1, 1, 1)
+				end)
+				playButton:SetScript("OnLeave", function()
+					texture:SetVertexColor(0.8, 0.8, 0.8)
+				end)
+			end
+
+			menuButton.rollCurtainPlayButton = playButton
+		end
+
+		local function Preview()
+			if type(addon.PreviewSuppressionSoundKey) == "function" then
+				addon:PreviewSuppressionSoundKey(soundKey)
+			end
+		end
+
+		if MenuTemplates and type(MenuTemplates.SetUtilityButtonClickHandler) == "function" then
+			MenuTemplates.SetUtilityButtonClickHandler(playButton, Preview)
+		else
+			playButton:SetScript("OnClick", Preview)
+		end
+		playButton:Show()
+	end)
+end
+
 local function OpenSoundMenu(button)
 	if not MenuUtil or type(MenuUtil.CreateContextMenu) ~= "function" then return end
 	MenuUtil.CreateContextMenu(button, function(_, rootDescription)
-		local current = addon:GetSelectedSuppressionSoundKey()
+		if type(rootDescription.SetScrollMode) == "function" then
+			-- Match DBM's sound picker height so long SharedMedia lists stay compact.
+			rootDescription:SetScrollMode(SOUND_MENU_HEIGHT)
+		end
+
 		local choices = addon:GetSuppressionSoundChoices()
 		local currentSource
 		for _, choice in ipairs(choices) do
@@ -25,16 +84,21 @@ local function OpenSoundMenu(button)
 					rootDescription:CreateTitle("SharedMedia sounds")
 				end
 			end
-			local label = choice.label
-			if choice.key == current then label = label .. "  (Current)" end
-			rootDescription:CreateButton(label, function()
-				if addon:SetSelectedSuppressionSound(choice.key) then
-					if addon.suppressionSoundSelectButton then
+
+			local soundKey = choice.key
+			local radio = rootDescription:CreateRadio(
+				choice.label,
+				function(data)
+					return addon:GetSelectedSuppressionSoundKey() == data.key
+				end,
+				function(data)
+					if addon:SetSelectedSuppressionSound(data.key) and addon.suppressionSoundSelectButton then
 						addon.suppressionSoundSelectButton:SetText(addon:GetSelectedSuppressionSoundLabel())
 					end
-					addon:PreviewSuppressionSound()
-				end
-			end)
+				end,
+				choice
+			)
+			AttachSoundPreviewButton(radio, soundKey)
 		end
 	end)
 end
@@ -54,7 +118,7 @@ local function EnsureSoundSelector(addonObject)
 		if not GameTooltip then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:SetText("Suppression sound")
-		GameTooltip:AddLine("Choose a built-in Blizzard sound. If another addon provides LibSharedMedia-3.0, its registered sounds are listed here too.", 1, 1, 1, true)
+		GameTooltip:AddLine("Choose a built-in Blizzard sound or a sound registered through LibSharedMedia-3.0. Use the speaker icon beside a sound to preview it without selecting it.", 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	selectButton:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
