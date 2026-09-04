@@ -23,6 +23,7 @@ SettingsExtensions.lua
 UXSettings.lua
 ProfilesElvUILayout.lua
 ProfilesElvUISkin.lua
+UXPolish.lua
 CharacterIdentity.lua
 Debug.lua
 DebugMinimap.lua
