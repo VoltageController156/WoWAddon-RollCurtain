@@ -121,10 +121,25 @@ Restoring a hidden prompt does **not** perform the roll or spend currency. The o
 
 ## Installation
 
-1. Download the latest release.
-2. Copy the `RollCurtain` add-on folder into `_retail_/Interface/AddOns/`.
+### Recommended — CurseForge
+
+For the easiest installation and automatic updates, install Roll Curtain through the **CurseForge App**.
+
+1. Open the CurseForge App and select **World of Warcraft**.
+2. Search for **Roll Curtain** or open the [Roll Curtain CurseForge page](https://www.curseforge.com/wow/addons/roll-curtain).
+3. Click **Install**.
+4. Keep Roll Curtain managed by CurseForge to receive future stable updates automatically.
+
+### Manual — GitHub Releases
+
+If you prefer to install manually from GitHub:
+
+1. Download the latest stable build from [GitHub Releases](https://github.com/VoltageController156/WoWAddon-RollCurtain/releases/latest).
+2. Extract the `RollCurtain` add-on folder into `_retail_/Interface/AddOns/`.
 3. Restart World of Warcraft or type `/reload` if the game is already running.
 4. Enable **Roll Curtain** in the AddOns list.
+
+GitHub installs are manual; future releases must be downloaded and installed manually unless you switch to an addon manager such as CurseForge.
 
 ## Beta builds and testing
 
