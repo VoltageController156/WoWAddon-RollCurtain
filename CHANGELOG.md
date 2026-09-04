@@ -7,6 +7,7 @@
 - Fixed suppressed bonus-roll prompts resurfacing after teleporting or zoning into another dungeon while the original roll was still active.
 - Treats Blizzard's reconstructed copy of the same active bonus roll as the existing suppressed roll even when its rebuilt expiration timestamp drifts by a few seconds.
 - Keeps protection against a genuinely new bonus roll inheriting stale suppression state when Blizzard reuses `BonusRollFrame`.
+- Prevented the suppression chat notification from being sent again when Blizzard reconstructs the same already-hidden roll during zone transitions; the original content label and restore state are preserved.
 
 ## 0.0.7
 
@@ -104,7 +105,7 @@
 
 ## 0.0.2
 
-- Added separate raid suppression options for Story Mode, Raid Finder (LFR), Normal, Heroic, and Mythic.
+- Added separate raid suppression options for Story Mode, Raid Finder (LFR), Normal, and Mythic.
 - Added raid difficulty detection using Blizzard's instance difficulty IDs.
 - Migrates the 0.0.1 generic raid preference to the new per-difficulty settings on upgrade.
 - Added MIT license and project metadata to the add-on TOC for distribution.
