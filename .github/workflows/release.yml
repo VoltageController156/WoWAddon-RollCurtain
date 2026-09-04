@@ -17,15 +17,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      base_version: ${{ steps.version.outputs.base_version }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      channel: ${{ steps.version.outputs.channel }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -74,12 +79,24 @@ jobs:
             lua5.4 "$test_file"
           done
 
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
       - name: Stamp packaged add-on metadata
-        if: github.event_name != 'pull_request'
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
+          VERSION: ${{ needs.release.outputs.version }}
+          CHANNEL: ${{ needs.release.outputs.channel }}
         run: |
           sed -i -E "s/^## Version:.*/## Version: $VERSION/" RollCurtain/RollCurtain.toc
           if grep -q '^## X-Release-Channel:' RollCurtain/RollCurtain.toc; then
@@ -90,20 +107,18 @@ jobs:
           grep -E '^## (Version|X-Release-Channel):' RollCurtain/RollCurtain.toc
 
       - name: Package add-on
-        if: github.event_name != 'pull_request'
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           zip -r "RollCurtain-$VERSION.zip" RollCurtain
 
       - name: Build release notes
-        if: github.event_name != 'pull_request'
         shell: bash
         env:
-          BASE_VERSION: ${{ steps.version.outputs.base_version }}
-          VERSION: ${{ steps.version.outputs.version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
+          BASE_VERSION: ${{ needs.release.outputs.base_version }}
+          VERSION: ${{ needs.release.outputs.version }}
+          CHANNEL: ${{ needs.release.outputs.channel }}
         run: |
           awk -v version="$BASE_VERSION" '
             $0 == "## " version { capture=1; next }
@@ -128,11 +143,10 @@ jobs:
           fi
 
       - name: Check for existing GitHub release
-        if: github.event_name != 'pull_request'
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
         shell: bash
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -142,12 +156,12 @@ jobs:
           fi
 
       - name: Create GitHub release
-        if: github.event_name != 'pull_request' && steps.existing.outputs.exists == 'false'
+        if: steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
+          CHANNEL: ${{ needs.release.outputs.channel }}
         shell: bash
         run: |
           prerelease_args=()
@@ -163,11 +177,11 @@ jobs:
             "${prerelease_args[@]}"
 
       - name: Refresh existing GitHub release
-        if: github.event_name == 'push' && github.ref_name == 'main' && steps.version.outputs.channel == 'release' && steps.existing.outputs.exists == 'true' && contains(github.event.head_commit.message, '[refresh-release]')
+        if: github.event_name == 'push' && github.ref_name == 'main' && needs.release.outputs.channel == 'release' && steps.existing.outputs.exists == 'true' && contains(github.event.head_commit.message, '[refresh-release]')
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
