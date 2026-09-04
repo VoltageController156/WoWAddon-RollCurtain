@@ -1,11 +1,12 @@
 local addonName, addon = ...
 
--- Blizzard can re-add an existing BonusRollFrame to the loot container when
--- the player changes instances. If Roll Curtain already suppressed that exact
--- prompt, keep it hidden until it expires or the player explicitly restores it.
--- BonusRollFrame itself is reused, so also track the identity/generation of the
--- actual roll to avoid suppressing a later, unrelated roll on the same frame.
+-- Blizzard can rebuild an active BonusRollFrame when the player changes zones
+-- or enters another instance. If Roll Curtain already suppressed that same
+-- underlying prompt, keep it hidden until it expires or the player explicitly
+-- restores it. BonusRollFrame itself is reused for every roll, so compare the
+-- roll's stable identity instead of treating every StartBonusRoll call as new.
 
+local END_TIME_TOLERANCE_SECONDS = 5
 local allowingManualRestore = false
 local groupLootHookInstalled = false
 local showHookInstalled = false
@@ -14,6 +15,9 @@ local rollGeneration = 0
 
 local function ClearHiddenRoll()
 	addon.hiddenBonusRoll = nil
+	if type(addon.RefreshMinimapRecoveryGlow) == "function" then
+		addon:RefreshMinimapRecoveryGlow()
+	end
 end
 
 local function CaptureHiddenRollIdentity(hidden, frame, generation)
@@ -21,19 +25,27 @@ local function CaptureHiddenRollIdentity(hidden, frame, generation)
 	hidden.rollGeneration = generation
 	hidden.rollSpellID = frame.spellID
 	hidden.rollEndTime = frame.endTime
+	hidden.rollDifficultyID = frame.difficultyID
+	hidden.rollInstanceID = frame.instanceID
+	hidden.rollEncounterID = frame.encounterID
+end
+
+local function ValuesConflict(a, b)
+	return a ~= nil and b ~= nil and a ~= b
+end
+
+local function EndTimesConflict(a, b)
+	if type(a) ~= "number" or type(b) ~= "number" then return false end
+	return math.abs(a - b) > END_TIME_TOLERANCE_SECONDS
 end
 
 local function HiddenRollIdentityMatches(hidden, frame)
 	if not hidden or not frame then return false end
-	if hidden.rollGeneration ~= nil and hidden.rollGeneration ~= rollGeneration then
-		return false
-	end
-	if hidden.rollSpellID ~= nil and hidden.rollSpellID ~= frame.spellID then
-		return false
-	end
-	if hidden.rollEndTime ~= nil and hidden.rollEndTime ~= frame.endTime then
-		return false
-	end
+	if ValuesConflict(hidden.rollSpellID, frame.spellID) then return false end
+	if EndTimesConflict(hidden.rollEndTime, frame.endTime) then return false end
+	if ValuesConflict(hidden.rollDifficultyID, frame.difficultyID) then return false end
+	if ValuesConflict(hidden.rollInstanceID, frame.instanceID) then return false end
+	if ValuesConflict(hidden.rollEncounterID, frame.encounterID) then return false end
 	return true
 end
 
@@ -54,10 +66,10 @@ local function HiddenRollIsActive()
 		return false
 	end
 
-	-- A freshly suppressed roll is created by Core.lua without identity fields.
-	-- Capture them lazily as a fallback in case Blizzard shows/re-adds the frame
-	-- before the deferred StartBonusRoll observer runs.
-	if hidden.rollGeneration == nil then
+	-- A freshly suppressed roll is created without identity fields. Capture them
+	-- lazily so a zone transition can be guarded even before the deferred
+	-- StartBonusRoll observer has run.
+	if hidden.rollSpellID == nil and hidden.rollEndTime == nil then
 		CaptureHiddenRollIdentity(hidden, frame, rollGeneration)
 	end
 	return true
@@ -74,27 +86,22 @@ local function ResuppressHiddenRoll(frame)
 end
 
 local function SyncHiddenRollIdentity(generation)
-	-- Ignore a deferred callback if another roll started before it ran.
+	-- Ignore a deferred callback if another StartBonusRoll call happened first.
 	if generation ~= rollGeneration then return end
 
 	local hidden = addon.hiddenBonusRoll
 	local frame = hidden and hidden.frame
 	if not hidden or frame ~= BonusRollFrame then return end
 
-	-- If the hidden record already belongs to an older generation, a new roll
-	-- has started without Core.lua replacing the record. That means the new roll
-	-- is not supposed to inherit the old suppression state.
-	if hidden.rollGeneration ~= nil and hidden.rollGeneration ~= generation then
-		ClearHiddenRoll()
-		return
-	end
-
-	if hidden.rollGeneration == nil then
+	-- A zone/instance transition can invoke BonusRollFrame_StartBonusRoll again for
+	-- the same active prompt. Blizzard rebuilds frame.endTime from the remaining
+	-- duration, so allow a small deadline drift and refresh the captured identity.
+	-- A genuinely new roll changes the stable identity or has a meaningfully later
+	-- deadline and must not inherit the old suppression state.
+	if HiddenRollIdentityMatches(hidden, frame) then
 		CaptureHiddenRollIdentity(hidden, frame, generation)
-		return
-	end
-
-	if not HiddenRollIdentityMatches(hidden, frame) then
+		ResuppressHiddenRoll(frame)
+	else
 		ClearHiddenRoll()
 	end
 end
@@ -104,8 +111,7 @@ local function ObserveStartedRoll()
 	local generation = rollGeneration
 
 	-- Core.lua also hooks BonusRollFrame_StartBonusRoll. Defer one frame so all
-	-- post-hooks have finished and we can tell whether Core created a fresh
-	-- hidden-roll record for this new roll or left an older record behind.
+	-- post-hooks have finished and the rebuilt frame contains its final identity.
 	if C_Timer and type(C_Timer.After) == "function" then
 		C_Timer.After(0, function()
 			SyncHiddenRollIdentity(generation)
