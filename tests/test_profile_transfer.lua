@@ -45,7 +45,11 @@ assert(addon.currentProfile.confirmBonusRoll == false)
 assert(addon.currentProfile.suppressionSound == true)
 assert(refreshCount == 1)
 
-local corrupted = exported:sub(1, -2) .. (exported:sub(-1) == "A" and "B" or "A")
+-- Corrupt the checksum explicitly so the failure case is independent of Base64
+-- padding or payload length.
+local prefix, checksum, encoded = exported:match("^([^:]+):([^:]+):(.+)$")
+local badChecksum = checksum == "0000" and "0001" or "0000"
+local corrupted = table.concat({ prefix, badChecksum, encoded }, ":")
 assert(addon:ImportProfileString(corrupted) == false)
 assert(#messages >= 2)
 
