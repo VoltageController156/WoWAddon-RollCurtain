@@ -49,6 +49,22 @@ local function HiddenRollIdentityMatches(hidden, frame)
 	return true
 end
 
+-- Notifications uses this pure identity check to distinguish the first time a
+-- roll is suppressed from Blizzard merely reconstructing that same active roll
+-- during a zone transition. Re-suppressing an existing roll must not create a
+-- second chat notification or overwrite the original content classification.
+function addon:IsCurrentBonusRollAlreadySuppressed(frame)
+	frame = frame or BonusRollFrame
+	local hidden = self.hiddenBonusRoll
+	if not hidden or not frame or hidden.frame ~= frame or frame.state ~= "prompt" then
+		return false
+	end
+	if frame.endTime and type(time) == "function" and frame.endTime <= time() then
+		return false
+	end
+	return HiddenRollIdentityMatches(hidden, frame)
+end
+
 local function HiddenRollIsActive()
 	local hidden = addon.hiddenBonusRoll
 	local frame = hidden and hidden.frame
