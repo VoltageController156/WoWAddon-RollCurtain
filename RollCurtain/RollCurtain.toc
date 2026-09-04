@@ -5,6 +5,7 @@
 ## Version: 0.0.8
 ## X-Release-Channel: development
 ## SavedVariables: RollCurtainDB
+## LoadSavedVariablesFirst: 1
 ## X-Category: Loot
 ## X-License: MIT
 ## X-Website: https://github.com/VoltageController156/WoWAddon-RollCurtain
