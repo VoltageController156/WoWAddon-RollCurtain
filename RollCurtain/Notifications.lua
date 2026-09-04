@@ -91,7 +91,15 @@ function addon:BuildSuppressionNotification(contentType)
 	local label = notificationContentLabels[contentType]
 		or (self.contentLabels and self.contentLabels[contentType])
 		or notificationContentLabels.unknown
-	return PREFIX .. "Bonus roll suppressed - " .. label .. " - " .. RESTORE_LINK
+	local message = PREFIX .. "Bonus roll suppressed - " .. label .. " - " .. RESTORE_LINK
+	if type(self.GetHiddenRollExpirationSummary) == "function" then
+		local remaining, serverTime = self:GetHiddenRollExpirationSummary()
+		if remaining then
+			message = message .. " - Expires in: " .. remaining
+			if serverTime then message = message .. " (" .. serverTime .. " server)" end
+		end
+	end
+	return message
 end
 
 function addon:NotifyBonusRollSuppressed(contentType)
@@ -148,9 +156,14 @@ function addon:HideCurrentPromptIfConfigured()
 
 	local shouldHide, contentType = self:ShouldHideCurrentPrompt()
 	if shouldHide and type(BonusRollFrame_CloseBonusRoll) == "function" then
-		self.hiddenBonusRoll = { frame = BonusRollFrame, contentType = contentType }
+		self.hiddenBonusRoll = {
+			frame = BonusRollFrame,
+			contentType = contentType,
+			rollEndTime = BonusRollFrame.endTime,
+		}
 		BonusRollFrame_CloseBonusRoll()
 		self:NotifyBonusRollSuppressed(contentType)
+		if type(self.PlaySuppressionSound) == "function" then self:PlaySuppressionSound() end
 		self:RefreshMinimapRecoveryGlow()
 	end
 end
