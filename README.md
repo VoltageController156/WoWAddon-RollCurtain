@@ -4,7 +4,7 @@
 
 <img src="assets/roll-curtain-icon.png" alt="Roll Curtain icon" width="180">
 
-**Hide unwanted bonus-roll prompts by activity type and raid difficulty.**
+**Hide unwanted bonus-roll prompts based on the WoW content you're playing.**
 
 <p>
   <a href="https://www.curseforge.com/wow/addons/roll-curtain"><img alt="CurseForge" src="https://img.shields.io/badge/CurseForge-Roll%20Curtain-F16436?logo=curseforge&logoColor=white"></a>
