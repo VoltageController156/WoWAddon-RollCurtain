@@ -5,6 +5,7 @@
 ## Version: 0.0.8
 ## X-Release-Channel: development
 ## SavedVariables: RollCurtainDB
+## LoadSavedVariablesFirst: 1
 ## X-Category: Loot
 ## X-License: MIT
 ## X-Website: https://github.com/VoltageController156/WoWAddon-RollCurtain
@@ -13,12 +14,18 @@ Core.lua
 TransitionGuard.lua
 Settings.lua
 SettingsLayout.lua
+RollTiming.lua
 MinimapButton.lua
+SuppressionSound.lua
 Notifications.lua
+ProfileTransfer.lua
 SettingsExtensions.lua
+UXSettings.lua
 ProfilesElvUILayout.lua
 ProfilesElvUISkin.lua
 CharacterIdentity.lua
 Debug.lua
 DebugMinimap.lua
 DebugRecoveryPreview.lua
+FirstRun.lua
+WhatsNew.lua

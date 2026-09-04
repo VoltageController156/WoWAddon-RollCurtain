@@ -2,6 +2,14 @@
 
 ## 0.0.8
 
+### Added
+
+- Added a live hidden-roll expiration countdown to suppression chat notifications and the minimap tooltip, including the server-time deadline for the active roll.
+- Added a one-time per-character first-run setup with **Recommended**, **Outdoor Only**, and **Configure Manually** choices. The Recommended view explains which activities are suppressed and which remain visible before opening the full settings panel.
+- Added profile import/export using a validated, shareable Roll Curtain profile string for moving settings between characters or installations.
+- Added an optional **Play a sound when a bonus roll is suppressed** setting using Blizzard's bonus-roll sound.
+- Added a per-character **What's New** panel for meaningful release lines; beta suffix updates within the same feature line do not repeatedly show it.
+
 ### Fixed
 
 - Fixed suppressed bonus-roll prompts resurfacing after teleporting or zoning into another dungeon while the original roll was still active.
