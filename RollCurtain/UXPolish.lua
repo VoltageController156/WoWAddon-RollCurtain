@@ -26,8 +26,18 @@ local function AttachSoundPreviewButton(description, soundKey)
 			end
 			if not playButton then return end
 
+			if type(playButton.SetFrameStrata) == "function" and type(menuButton.GetFrameStrata) == "function" then
+				playButton:SetFrameStrata(menuButton:GetFrameStrata())
+			end
+			if type(playButton.SetMouseClickEnabled) == "function" then
+				playButton:SetMouseClickEnabled(true)
+			end
+			if type(playButton.SetMouseMotionEnabled) == "function" then
+				playButton:SetMouseMotionEnabled(true)
+			end
 			playButton:SetSize(16, 16)
 			playButton:SetPoint("RIGHT", -5, 0)
+			playButton:Show()
 
 			local texture
 			if type(playButton.AttachTexture) == "function" then
