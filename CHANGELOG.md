@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.0.8
+
+### Added
+
+- Added a live hidden-roll expiration countdown to suppression chat notifications and the minimap tooltip, including the server-time deadline for the active roll.
+- Added a one-time per-character first-run setup with **Recommended**, **Outdoor Only**, and **Configure Manually** choices. The Recommended view explains which activities are suppressed and which remain visible before opening the full settings panel.
+- Added profile import/export using a validated, shareable Roll Curtain profile string for moving settings between characters or installations.
+- Added an optional **Play a sound when a bonus roll is suppressed** setting.
+- Added a suppression-sound picker with built-in Blizzard sounds, optional LibSharedMedia-3.0 sounds registered by other installed addons, and a **Test Sound** preview button.
+- Added a per-character **What's New** panel for meaningful release lines; beta suffix updates within the same feature line do not repeatedly show it.
+
+### Changed
+
+- Reworked the suppression-sound picker into a compact DBM-style 200px scrollable menu. Each sound now has a speaker preview button on the right, and selecting a sound no longer automatically plays it.
+
+### Fixed
+
+- Fixed suppressed bonus-roll prompts resurfacing after teleporting or zoning into another dungeon while the original roll was still active.
+- Treats Blizzard's reconstructed copy of the same active bonus roll as the existing suppressed roll even when its rebuilt expiration timestamp drifts by a few seconds.
+- Keeps protection against a genuinely new bonus roll inheriting stale suppression state when Blizzard reuses `BonusRollFrame`.
+- Prevented the suppression chat notification from being sent again when Blizzard reconstructs the same already-hidden roll during zone transitions; the original content label and restore state are preserved.
+- Fixed the Profiles page Import / Export controls overlapping the ElvUI-style delete and profile-assignment sections.
+- Fixed the suppression-sound row speaker buttons so clicking a speaker reliably previews that sound without changing the selected sound.
+
 ## 0.0.7
 
 ### Added

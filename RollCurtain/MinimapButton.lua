@@ -98,6 +98,11 @@ local function ShowTooltip(button)
 	if HasRecoverableRoll() then
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine("A hidden bonus roll is available.", 1, 0.82, 0)
+		if type(addon.GetHiddenRollExpirationSummary) == "function" then
+			local remaining, serverTime = addon:GetHiddenRollExpirationSummary()
+			if remaining then GameTooltip:AddLine("Expires in: " .. remaining, 1, 1, 1) end
+			if serverTime then GameTooltip:AddLine("Expires at: " .. serverTime .. " server", 1, 1, 1) end
+		end
 	end
 	GameTooltip:Show()
 end
@@ -171,7 +176,11 @@ function addon:RegisterMinimapButton()
 		if self.dragging then UpdateButtonFromCursor(self) end
 		UpdateGlowPulse(self, elapsed)
 		self.refreshElapsed = self.refreshElapsed + elapsed
-		if self.refreshElapsed >= REFRESH_INTERVAL then self.refreshElapsed = 0; RefreshGlow(self) end
+		if self.refreshElapsed >= REFRESH_INTERVAL then
+			self.refreshElapsed = 0
+			RefreshGlow(self)
+			if GameTooltip and type(GameTooltip.IsOwned) == "function" and GameTooltip:IsOwned(self) then ShowTooltip(self) end
+		end
 	end)
 
 	PositionButton(button, GetSavedAngle())
