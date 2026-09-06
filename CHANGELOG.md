@@ -22,6 +22,7 @@
 - Keeps protection against a genuinely new bonus roll inheriting stale suppression state when Blizzard reuses `BonusRollFrame`.
 - Prevented the suppression chat notification from being sent again when Blizzard reconstructs the same already-hidden roll during zone transitions; the original content label and restore state are preserved.
 - Fixed the Profiles page Import / Export controls overlapping the ElvUI-style delete and profile-assignment sections.
+- Fixed the suppression-sound row speaker buttons so clicking a speaker reliably previews that sound without changing the selected sound.
 
 ## 0.0.7
 
