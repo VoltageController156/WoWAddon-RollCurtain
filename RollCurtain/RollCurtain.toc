@@ -30,3 +30,4 @@ DebugMinimap.lua
 DebugRecoveryPreview.lua
 FirstRun.lua
 WhatsNew.lua
+BuildInfo.lua
