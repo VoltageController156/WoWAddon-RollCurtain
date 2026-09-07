@@ -39,23 +39,54 @@ jobs:
         shell: bash
         run: |
           base_version="$(awk -F': ' '/^## Version:/ { print $2; exit }' RollCurtain/RollCurtain.toc | tr -d '\r')"
+          beta_build="$(awk -F': ' '/^## X-Beta-Build:/ { print $2; exit }' RollCurtain/RollCurtain.toc | tr -d '\r')"
           if [[ -z "$base_version" ]]; then
             echo "Unable to read ## Version from RollCurtain/RollCurtain.toc" >&2
             exit 1
           fi
 
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF_NAME" != "main" && "$GITHUB_REF_NAME" != "beta" ]]; then
+            echo "Manual releases are only supported from main or beta." >&2
+            exit 1
+          fi
+
           channel="release"
           version="$base_version"
+          beta_release=false
+          beta_validation=false
 
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF_NAME" == "beta" ]]; then
-            channel="beta"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$GITHUB_BASE_REF" == "beta" ]]; then
+            beta_validation=true
+          fi
+
+          if { [[ "$GITHUB_EVENT_NAME" == "push" ]] || [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; } && [[ "$GITHUB_REF_NAME" == "beta" ]]; then
+            beta_release=true
+            beta_validation=true
+          fi
+
+          if [[ "$beta_validation" == "true" ]]; then
+            if ! [[ "$beta_build" =~ ^[1-9][0-9]*$ ]]; then
+              echo "## X-Beta-Build must be a positive integer for beta changes." >&2
+              exit 1
+            fi
+
             git fetch --tags --force
             latest_beta="$(git tag -l "v${base_version}-beta.*" \
               | sed -n "s/^v${base_version//./\\.}-beta\.\([0-9][0-9]*\)$/\1/p" \
               | sort -n \
               | tail -n 1)"
-            next_beta=$(( ${latest_beta:-0} + 1 ))
-            version="${base_version}-beta.${next_beta}"
+            expected_beta=$(( ${latest_beta:-0} + 1 ))
+
+            if (( 10#$beta_build != expected_beta )); then
+              echo "## X-Beta-Build is $beta_build, but the next beta for $base_version must be $expected_beta." >&2
+              echo "Bump ## X-Beta-Build in RollCurtain/RollCurtain.toc before merging to beta." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "$beta_release" == "true" ]]; then
+            channel="beta"
+            version="${base_version}-beta.${beta_build}"
           fi
 
           echo "base_version=$base_version" >> "$GITHUB_OUTPUT"
@@ -104,7 +135,7 @@ jobs:
           else
             sed -i "/^## Version:/a ## X-Release-Channel: $CHANNEL" RollCurtain/RollCurtain.toc
           fi
-          grep -E '^## (Version|X-Release-Channel):' RollCurtain/RollCurtain.toc
+          grep -E '^## (Version|X-Release-Channel|X-Beta-Build):' RollCurtain/RollCurtain.toc
 
       - name: Package add-on
         shell: bash
