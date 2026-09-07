@@ -15,6 +15,23 @@ function addon:GetReleaseChannel()
 	return "development"
 end
 
+function addon:GetDisplayVersion()
+	local version = tostring(GetMetadata("Version", "Unknown"))
+	local channel = self:GetReleaseChannel()
+
+	-- GitHub Actions stamps packaged beta builds with the complete version
+	-- (for example, 0.0.9-beta.4). A live source checkout still has the base
+	-- version in ## Version, so append the tracked beta sequence there instead.
+	if (channel == "beta" or channel == "development") and not version:match("%-beta%.%d+$") then
+		local betaBuild = tonumber(GetMetadata("X-Beta-Build", nil))
+		if betaBuild and betaBuild >= 1 and betaBuild == math.floor(betaBuild) then
+			return string.format("%s-beta.%d", version, betaBuild)
+		end
+	end
+
+	return version
+end
+
 function addon:GetBuildIndicatorText()
 	local channel = self:GetReleaseChannel()
 	if channel == "beta" then
@@ -26,7 +43,7 @@ function addon:GetBuildIndicatorText()
 end
 
 function addon:BuildSettingsFooterText()
-	local version = GetMetadata("Version", "Unknown")
+	local version = self:GetDisplayVersion()
 	local author = GetMetadata("Author", "VoltageController156")
 	local indicator = self:GetBuildIndicatorText()
 	if indicator then

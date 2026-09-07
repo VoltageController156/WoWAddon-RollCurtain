@@ -3,6 +3,7 @@ local metadata = {
 	Version = "0.0.9",
 	Author = "VoltageController156",
 	["X-Release-Channel"] = "development",
+	["X-Beta-Build"] = "4",
 }
 
 C_AddOns = {
@@ -35,24 +36,27 @@ end
 assert(loadfile("RollCurtain/BuildInfo.lua"))("RollCurtain", addon)
 
 assert(addon:GetReleaseChannel() == "development")
+assert(addon:GetDisplayVersion() == "0.0.9-beta.4", "Development source build should include its beta sequence")
 assert(addon:GetBuildIndicatorText():find("DEVELOPMENT / TEST BUILD", 1, true))
 assert(addon:RegisterSettings() == "registered")
-assert(footer.text:find("Version 0.0.9", 1, true))
+assert(footer.text:find("Version 0.0.9-beta.4", 1, true))
 assert(footer.text:find("DEVELOPMENT / TEST BUILD", 1, true))
 assert(footer.text:find("Author: VoltageController156", 1, true))
 assert(addon.settingsFooter == footer, "Expected settings footer to be cached")
 
-metadata.Version = "0.0.9-beta.3"
+metadata.Version = "0.0.9-beta.4"
 metadata["X-Release-Channel"] = "beta"
 assert(addon:GetReleaseChannel() == "beta")
+assert(addon:GetDisplayVersion() == "0.0.9-beta.4", "Packaged beta version should not receive a duplicate suffix")
 assert(addon:GetBuildIndicatorText():find("BETA / TEST BUILD", 1, true))
 assert(addon:RefreshBuildIndicator() == true)
-assert(footer.text:find("Version 0.0.9-beta.3", 1, true))
+assert(footer.text:find("Version 0.0.9-beta.4", 1, true))
 assert(footer.text:find("BETA / TEST BUILD", 1, true))
 
 metadata.Version = "0.0.9"
 metadata["X-Release-Channel"] = "release"
 assert(addon:GetReleaseChannel() == "release")
+assert(addon:GetDisplayVersion() == "0.0.9", "Stable releases should ignore the beta build counter")
 assert(addon:GetBuildIndicatorText() == nil)
 assert(addon:RefreshBuildIndicator() == true)
 assert(footer.text == "Version 0.0.9  •  Author: VoltageController156", "Stable footer should not show a test-build warning")

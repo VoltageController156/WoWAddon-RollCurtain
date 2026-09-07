@@ -2,6 +2,10 @@
 
 ## 0.0.9
 
+### Added
+
+- Added the exact beta build sequence to the Settings footer for development/source checkouts, so local test builds display versions such as `0.0.9-beta.4` while stable releases remain unchanged.
+
 ### Fixed
 
 - Prevented a bonus-roll opportunity that was already suppressed before logout from being treated as a new roll when Blizzard replays it immediately after login. Roll Curtain now remembers a small per-character roll identity across sessions and silently resumes the prior suppression during a short login window, preserving the original content classification without replaying the chat notification or suppression sound.
