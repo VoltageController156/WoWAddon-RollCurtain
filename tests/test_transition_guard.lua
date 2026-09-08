@@ -5,8 +5,25 @@ local groupAddHook
 local showHook
 local startRollHook
 local deferredCallbacks = {}
+local characterKey = "Tester - TestRealm"
 
 function time() return currentTime end
+
+RollCurtainDB = {
+	suppressedRollReplay = {
+		[characterKey] = {
+			contentType = "dungeonMythic",
+			rollSpellID = 123,
+			rollDifficultyID = 23,
+			rollInstanceID = 100,
+			rollEncounterID = 200,
+			rollEndTime = currentTime - 3000,
+			recordedAt = currentTime - 3600,
+		},
+	},
+}
+
+function addon:GetCharacterKey() return characterKey end
 
 C_Timer = {
 	After = function(_, callback)
@@ -77,7 +94,6 @@ function CreateFrame()
 	return frame
 end
 
-addon.hiddenBonusRoll = { frame = BonusRollFrame, contentType = "dungeonMythic" }
 function addon:ShowHiddenBonusRoll()
 	if not self.hiddenBonusRoll then return false end
 	GroupLootContainer_AddFrame(GroupLootContainer, BonusRollFrame)
@@ -89,6 +105,23 @@ assert(loadfile("RollCurtain/TransitionGuard.lua"))("RollCurtain", addon)
 assert(groupAddHook, "Expected GroupLootContainer_AddFrame hook")
 assert(showHook, "Expected BonusRollFrame Show hook")
 assert(startRollHook, "Expected BonusRollFrame_StartBonusRoll hook")
+
+local transitionEventFrame = frames[#frames]
+assert(transitionEventFrame and transitionEventFrame.scripts.OnEvent, "Expected transition event frame")
+transitionEventFrame.scripts.OnEvent(transitionEventFrame, "ADDON_LOADED", "RollCurtain")
+
+-- A roll suppressed before logout can be replayed by Blizzard with a newly
+-- reconstructed deadline after login. Matching stable identity should resume
+-- the old suppression even though the endTime no longer matches the old session.
+assert(RollCurtainDB.suppressedRollReplay[characterKey] == nil, "Saved replay marker should be consumed into runtime state")
+assert(addon:ResumePriorSuppressedRoll(BonusRollFrame) == true, "Matching login replay should resume prior suppression")
+assert(addon.hiddenBonusRoll and addon.hiddenBonusRoll.contentType == "dungeonMythic", "Login replay should preserve original content type")
+assert(addon.hiddenBonusRoll.rollEndTime == currentTime + 60, "Resumed roll should adopt the new session deadline")
+assert(RollCurtainDB.suppressedRollReplay[characterKey] ~= nil, "Resumed hidden roll should refresh its stored replay marker")
+addon:ClearSuppressedRollReplayMarker()
+
+-- Continue with a fresh same-session hidden roll for the transition tests.
+addon.hiddenBonusRoll = { frame = BonusRollFrame, contentType = "dungeonMythic" }
 
 -- A newly suppressed roll gets a stable identity after Blizzard and Core.lua
 -- finish handling BonusRollFrame_StartBonusRoll.
@@ -154,6 +187,7 @@ BonusRollFrame.difficultyID = 23
 BonusRollFrame.instanceID = 100
 BonusRollFrame.encounterID = 200
 addon.hiddenBonusRoll = { frame = BonusRollFrame, contentType = "dungeonMythic" }
+addon:RememberSuppressedRollForReplay(BonusRollFrame, "dungeonMythic")
 BonusRollFrame_StartBonusRoll()
 RunDeferredCallbacks()
 local closeCountBeforeRestore = closeCount
@@ -161,6 +195,7 @@ assert(addon:ShowHiddenBonusRoll() == true)
 assert(bonusRollShown == true, "Manual restore should be allowed to show the bonus roll")
 assert(addon.hiddenBonusRoll == nil)
 assert(closeCount == closeCountBeforeRestore, "Manual restore should not immediately re-close the prompt")
+assert(RollCurtainDB.suppressedRollReplay[characterKey] == nil, "Manual restore should clear stored replay state")
 
 -- Expired hidden rolls should be discarded rather than guarded forever.
 addon.hiddenBonusRoll = { frame = BonusRollFrame, contentType = "dungeonMythic" }
@@ -169,5 +204,16 @@ bonusRollShown = false
 GroupLootContainer_AddFrame(GroupLootContainer, BonusRollFrame)
 assert(addon.hiddenBonusRoll == nil, "Expired hidden roll should be cleared")
 assert(bonusRollShown == true, "Expired stale frame should not be force-closed by Roll Curtain")
+
+-- Clean logout persists only a still-active hidden roll. If no hidden roll is
+-- active, stale replay state is removed instead of surviving another session.
+BonusRollFrame.endTime = currentTime + 30
+bonusRollShown = false
+addon.hiddenBonusRoll = { frame = BonusRollFrame, contentType = "dungeonMythic" }
+transitionEventFrame.scripts.OnEvent(transitionEventFrame, "PLAYER_LOGOUT")
+assert(RollCurtainDB.suppressedRollReplay[characterKey] ~= nil, "Active hidden roll should be remembered on logout")
+addon.hiddenBonusRoll = nil
+transitionEventFrame.scripts.OnEvent(transitionEventFrame, "PLAYER_LOGOUT")
+assert(RollCurtainDB.suppressedRollReplay[characterKey] == nil, "No active hidden roll should leave no replay marker")
 
 print("Roll Curtain transition guard tests passed")

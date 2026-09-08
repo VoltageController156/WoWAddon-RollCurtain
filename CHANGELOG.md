@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.9
+
+### Added
+
+- Added the exact beta build sequence to the Settings footer for development/source checkouts, so local test builds display versions such as `0.0.9-beta.4` while stable releases remain unchanged.
+
+### Changed
+
+- Removed **Battle.net Whisper** as a separate Chat Notifications destination. The regular **Whisper** destination remains available for whisper chat windows.
+
+### Fixed
+
+- Fixed the server-time expiration shown beside suppressed bonus-roll countdowns so it is calculated from the realm/server wall clock on the same remaining-duration basis. This prevents combinations such as `Expires in: 3m 00s` paired with a server deadline only about one minute away when the player's local time zone differs from the realm.
+- Prevented a bonus-roll opportunity that was already suppressed before logout from being treated as a new roll when Blizzard replays it immediately after login. Roll Curtain now remembers a small per-character roll identity across sessions and silently resumes the prior suppression during a short login window, preserving the original content classification without replaying the chat notification or suppression sound.
+
 ## 0.0.8
 
 ### Added
@@ -36,7 +51,7 @@
 
 ### Changed
 
-- New profiles now begin as a copy of the currently active profile instead of resetting to Roll Curtain defaults.
+- New profiles now begin as a copy of the currently active profile instead of resetting to defaults.
 - Refined the Profiles page with an ElvUI-inspired information hierarchy and optional ElvUI skin integration while retaining Blizzard-native styling when ElvUI is not loaded.
 - Renamed the character/profile summary to **Profile Assignments** and simplified the list so each profile is followed directly by its assigned characters.
 - Updated the suppressed-roll notification to `Roll Curtain: Bonus roll suppressed - <Content> - [Restore Bonus Roll]` with the existing clickable restore behavior.
@@ -107,7 +122,7 @@
 ### Changed
 
 - Redesigned raid settings around a top-level **Raids** switch with Story, LFR, Normal, Heroic, and Mythic options displayed horizontally beneath it.
-- Enabling **Raids** selects Story by default while leaving the other raid difficulties opt-in.
+- Enabling **Raids** selects Story by default while leaving the other difficulties opt-in.
 - Deselecting the final enabled raid difficulty automatically disables the top-level **Raids** switch and collapses the difficulty row.
 - Updated the settings panel layout, spacing, Defaults button, and version/author footer.
 - Added optional ElvUI checkbox skin integration while retaining the native Blizzard settings appearance as the fallback.

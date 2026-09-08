@@ -15,7 +15,6 @@ addon.chatDestinationDefinitions = {
 	{ key = "chatNotifyGuild", label = "Guild", messageGroup = "GUILD" },
 	{ key = "chatNotifyOfficer", label = "Officer", messageGroup = "OFFICER" },
 	{ key = "chatNotifyWhisper", label = "Whisper", messageGroup = "WHISPER" },
-	{ key = "chatNotifyBNWhisper", label = "Battle.net Whisper", messageGroup = "BN_WHISPER" },
 	{ key = "chatNotifyEmote", label = "Emote", messageGroup = "EMOTE" },
 	{ key = "chatNotifyChannels", label = "Channel Messages", messageGroup = "CHANNEL" },
 }
@@ -141,6 +140,20 @@ end
 function addon:HideCurrentPromptIfConfigured()
 	if not BonusRollFrame or not BonusRollFrame:IsShown() or BonusRollFrame.state ~= "prompt" then return end
 
+	-- A roll that was already suppressed before logout can be replayed by Blizzard
+	-- immediately after the next login. TransitionGuard remembers a small identity
+	-- fingerprint across sessions. Resume that suppression silently so the old
+	-- dungeon/raid roll is not reclassified from the player's new login location,
+	-- and do not replay the chat notification or sound.
+	if type(self.ResumePriorSuppressedRoll) == "function"
+		and self:ResumePriorSuppressedRoll(BonusRollFrame) then
+		if type(BonusRollFrame_CloseBonusRoll) == "function" then
+			BonusRollFrame_CloseBonusRoll()
+		end
+		self:RefreshMinimapRecoveryGlow()
+		return
+	end
+
 	-- Blizzard may call StartBonusRoll again for the same still-active prompt when
 	-- zoning. The transition guard already knows how to identify that reconstructed
 	-- copy. Close it again, but preserve the original hidden record and do not send
@@ -161,6 +174,9 @@ function addon:HideCurrentPromptIfConfigured()
 			contentType = contentType,
 			rollEndTime = BonusRollFrame.endTime,
 		}
+		if type(self.RememberSuppressedRollForReplay) == "function" then
+			self:RememberSuppressedRollForReplay(BonusRollFrame, contentType)
+		end
 		BonusRollFrame_CloseBonusRoll()
 		self:NotifyBonusRollSuppressed(contentType)
 		if type(self.PlaySuppressionSound) == "function" then self:PlaySuppressionSound() end

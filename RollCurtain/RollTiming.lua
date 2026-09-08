@@ -56,18 +56,44 @@ local function GetServerClock()
 	return nil, nil
 end
 
-function addon:GetHiddenRollExpirationServerTime()
-	local remaining = self:GetHiddenRollRemainingSeconds()
-	if remaining == nil then return nil end
+local function GetServerSecondsOfDay()
+	-- GetServerTimeLocal is already shifted into the realm/server time zone. It
+	-- updates at minute granularity, so combine its minute boundary with the
+	-- synchronized Unix-clock seconds from GetServerTime. This keeps the displayed
+	-- wall-clock deadline on one server-time basis instead of mixing independently
+	-- refreshed calendar fields with the countdown clock.
+	if C_DateAndTime and type(C_DateAndTime.GetServerTimeLocal) == "function" then
+		local serverLocal = C_DateAndTime.GetServerTimeLocal()
+		if type(serverLocal) == "number" then
+			local second = serverLocal % 60
+			if type(GetServerTime) == "function" then
+				local serverUnix = GetServerTime()
+				if type(serverUnix) == "number" then second = serverUnix % 60 end
+			end
+			local minuteBoundary = serverLocal - (serverLocal % 60)
+			return (minuteBoundary + second) % 86400
+		end
+	end
 
+	-- Compatibility fallback for clients/environments without GetServerTimeLocal.
 	local hour, minute = GetServerClock()
 	if hour == nil or minute == nil then return nil end
 	local second = 0
 	if type(GetServerTime) == "function" then
-		second = GetServerTime() % 60
+		local serverUnix = GetServerTime()
+		if type(serverUnix) == "number" then second = serverUnix % 60 end
 	end
+	return (hour * 3600) + (minute * 60) + second
+end
 
-	local total = (hour * 3600) + (minute * 60) + second + remaining
+function addon:GetHiddenRollExpirationServerTime()
+	local remaining = self:GetHiddenRollRemainingSeconds()
+	if remaining == nil then return nil end
+
+	local serverSeconds = GetServerSecondsOfDay()
+	if serverSeconds == nil then return nil end
+
+	local total = serverSeconds + remaining
 	local expireHour = math.floor(total / 3600) % 24
 	local expireMinute = math.floor((total % 3600) / 60)
 	local suffix = expireHour >= 12 and "PM" or "AM"
