@@ -6,6 +6,10 @@
 
 - Added the exact beta build sequence to the Settings footer for development/source checkouts, so local test builds display versions such as `0.0.9-beta.4` while stable releases remain unchanged.
 
+### Changed
+
+- Removed **Battle.net Whisper** as a separate Chat Notifications destination. The regular **Whisper** destination remains available for whisper chat windows.
+
 ### Fixed
 
 - Fixed the server-time expiration shown beside suppressed bonus-roll countdowns so it is calculated from the realm/server wall clock on the same remaining-duration basis. This prevents combinations such as `Expires in: 3m 00s` paired with a server deadline only about one minute away when the player's local time zone differs from the realm.
