@@ -15,7 +15,6 @@ addon.chatDestinationDefinitions = {
 	{ key = "chatNotifyGuild", label = "Guild", messageGroup = "GUILD" },
 	{ key = "chatNotifyOfficer", label = "Officer", messageGroup = "OFFICER" },
 	{ key = "chatNotifyWhisper", label = "Whisper", messageGroup = "WHISPER" },
-	{ key = "chatNotifyBNWhisper", label = "Battle.net Whisper", messageGroup = "BN_WHISPER" },
 	{ key = "chatNotifyEmote", label = "Emote", messageGroup = "EMOTE" },
 	{ key = "chatNotifyChannels", label = "Channel Messages", messageGroup = "CHANNEL" },
 }
