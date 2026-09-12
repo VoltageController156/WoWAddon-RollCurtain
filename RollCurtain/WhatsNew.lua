@@ -1,8 +1,8 @@
 local addonName, addon = ...
 
 -- Update this key and the notes only for meaningful releases. Beta suffixes do
--- not change the key, so testers see the panel once for the 0.0.8 feature line.
-local WHATS_NEW_VERSION = "0.0.8"
+-- not change the key, so testers see the panel once for the 0.0.10 feature line.
+local WHATS_NEW_VERSION = "0.0.10"
 
 local function EnsureWhatsNewDatabase()
 	if type(RollCurtainDB) ~= "table" then return false end
@@ -23,7 +23,7 @@ end
 local function CreateWhatsNewFrame()
 	if addon.whatsNewFrame or not UIParent then return addon.whatsNewFrame end
 	local frame = CreateFrame("Frame", "RollCurtainWhatsNewFrame", UIParent, "BasicFrameTemplateWithInset")
-	frame:SetSize(540, 360)
+	frame:SetSize(540, 320)
 	frame:SetPoint("CENTER")
 	frame:SetFrameStrata("DIALOG")
 	frame:SetMovable(true)
@@ -31,20 +31,20 @@ local function CreateWhatsNewFrame()
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-	if frame.TitleText then frame.TitleText:SetText("Roll Curtain — What's New in 0.0.8") end
+	if frame.TitleText then frame.TitleText:SetText("Roll Curtain — What's New in 0.0.10") end
 
 	local intro = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	intro:SetPoint("TOPLEFT", 28, -60)
 	intro:SetWidth(485)
 	intro:SetJustifyH("LEFT")
-	intro:SetText("This update focuses on making hidden bonus rolls easier to understand, recover, and configure.")
+	intro:SetText("Roll Curtain now has first-class support for World of Warcraft's new Lair boss content.")
 
 	local notes = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	notes:SetPoint("TOPLEFT", 38, -112)
 	notes:SetWidth(465)
 	notes:SetJustifyH("LEFT")
 	notes:SetJustifyV("TOP")
-	notes:SetText("• Hidden rolls now show a live expiration countdown and server-time deadline.\n\n• Profiles can be exported and imported with a shareable profile string.\n\n• An optional sound can play when Roll Curtain suppresses a bonus roll.\n\n• New characters get a one-time setup experience with recommended presets.\n\n• Suppressed rolls are more resilient to Blizzard rebuilding the prompt during zoning.")
+	notes:SetText("• A new Lair Bosses setting lets you control World, Normal, Heroic, and Mythic Lairs independently.\n\n• The Tidebound Grotto and Nymrissa Wavecaller are detected as Lair content instead of a normal raid.\n\n• Lair suppression is off by default for existing and new profiles until you enable it.")
 
 	local settingsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 	settingsButton:SetSize(130, 28)
