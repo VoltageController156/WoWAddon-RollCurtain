@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.10
+
+### Added
+
+- Added **Lair Bosses** as a configurable bonus-roll suppression category with separate **World**, **Normal**, **Heroic**, and **Mythic** difficulty controls. The Tidebound Grotto (Nymrissa Wavecaller) is recognized as Lair content instead of a normal raid; Lair suppression remains opt-in by default.
+
 ## 0.0.9
 
 ### Added
