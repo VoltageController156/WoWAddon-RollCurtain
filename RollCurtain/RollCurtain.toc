@@ -2,9 +2,9 @@
 ## Title: Roll Curtain
 ## Notes: Hides bonus-roll prompts in the content types you choose.
 ## Author: VoltageController156
-## Version: 0.0.9
+## Version: 0.0.10
 ## X-Release-Channel: development
-## X-Beta-Build: 6
+## X-Beta-Build: 1
 ## SavedVariables: RollCurtainDB
 ## LoadSavedVariablesFirst: 1
 ## X-Category: Loot
@@ -15,6 +15,7 @@ Core.lua
 TransitionGuard.lua
 Settings.lua
 SettingsLayout.lua
+LairSupport.lua
 RollTiming.lua
 MinimapButton.lua
 SuppressionSound.lua

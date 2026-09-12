@@ -15,6 +15,11 @@ local RECOMMENDED = {
 	dungeonHeroic = true,
 	dungeonMythic = true,
 	dungeonMythicPlus = false,
+	lairsEnabled = false,
+	lairWorld = false,
+	lairNormal = false,
+	lairHeroic = false,
+	lairMythic = false,
 	raidsEnabled = false,
 	raidStory = false,
 	raidLFR = false,
@@ -35,6 +40,11 @@ local OUTDOOR_ONLY = {
 	dungeonHeroic = false,
 	dungeonMythic = false,
 	dungeonMythicPlus = false,
+	lairsEnabled = false,
+	lairWorld = false,
+	lairNormal = false,
+	lairHeroic = false,
+	lairMythic = false,
 	raidsEnabled = false,
 	raidStory = false,
 	raidLFR = false,
@@ -115,7 +125,7 @@ local function CreateWizard()
 	recommendedText:SetPoint("TOPLEFT", 38, -140)
 	recommendedText:SetWidth(485)
 	recommendedText:SetJustifyH("LEFT")
-	recommendedText:SetText("Hidden: Delves, Prey hunts, world/outdoor content, and Normal, Heroic, and Mythic dungeons.\nShown: Mythic+, Story/LFR/Normal/Heroic/Mythic raids, and other scenarios.\nBonus-roll confirmation remains enabled.")
+	recommendedText:SetText("Hidden: Delves, Prey hunts, world/outdoor content, and Normal, Heroic, and Mythic dungeons.\nShown: Mythic+, Lair bosses, Story/LFR/Normal/Heroic/Mythic raids, and other scenarios.\nBonus-roll confirmation remains enabled.")
 
 	local sharedNote = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	sharedNote:SetPoint("TOPLEFT", 26, -225)
