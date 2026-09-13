@@ -1,6 +1,6 @@
 local addonName, addon = ...
 
--- Safe, beta/development-only decision test. This never creates, restores,
+-- Safe decision test for beta/development builds. This never creates, restores,
 -- closes, or otherwise touches BonusRollFrame; it only evaluates the same
 -- content classification and suppression decision used for a real prompt.
 
@@ -97,4 +97,59 @@ function addon:RunCurrentDecisionTest(printResult)
 	end
 
 	return result
+end
+
+local function EnsureDecisionTestControls(addonObject)
+	if addonObject.debugDecisionButton or not addonObject.debugSettingsPanel then return end
+	if type(addonObject.IsDevelopmentBuild) == "function" and not addonObject:IsDevelopmentBuild() then return end
+
+	local panel = addonObject.debugSettingsPanel
+	local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	button:SetSize(190, 26)
+	button:SetPoint("TOPLEFT", 24, -340)
+	button:SetText("Test Current Decision")
+	button:SetScript("OnClick", function() addon:RunCurrentDecisionTest(true) end)
+
+	local hint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	hint:SetPoint("TOPLEFT", 226, -344)
+	hint:SetWidth(360)
+	hint:SetJustifyH("LEFT")
+	hint:SetText("Safely evaluates the current content and settings. It does not create or spend a bonus roll.")
+
+	local result = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	result:SetPoint("TOPLEFT", 24, -386)
+	result:SetWidth(560)
+	result:SetJustifyH("LEFT")
+	result:SetJustifyV("TOP")
+	result:SetText("Current decision test has not been run yet.")
+
+	addonObject.debugDecisionButton = button
+	addonObject.debugDecisionHint = hint
+	addonObject.debugDecisionResult = result
+end
+
+local previousRegisterSettings = addon.RegisterSettings
+if type(previousRegisterSettings) == "function" then
+	addon.RegisterSettings = function(self, ...)
+		local result = previousRegisterSettings(self, ...)
+		EnsureDecisionTestControls(self)
+		return result
+	end
+end
+
+local previousSlashHandler = SlashCmdList and SlashCmdList.ROLLCURTAIN
+if type(previousSlashHandler) == "function" then
+	SlashCmdList.ROLLCURTAIN = function(input)
+		local raw = tostring(input or "")
+		local command = raw:lower():gsub("^%s+", ""):gsub("%s+$", "")
+		if command == "debug decision" then
+			if type(addon.IsDevelopmentBuild) ~= "function" or addon:IsDevelopmentBuild() then
+				addon:RunCurrentDecisionTest(true)
+			elseif DEFAULT_CHAT_FRAME and type(DEFAULT_CHAT_FRAME.AddMessage) == "function" then
+				DEFAULT_CHAT_FRAME:AddMessage("|cff9d9d9dRoll Curtain Decision Test:|r Available in beta/development builds.")
+			end
+			return
+		end
+		return previousSlashHandler(input)
+	end
 end
