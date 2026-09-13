@@ -3,6 +3,8 @@ local addonName, addon = ...
 -- Final authoritative layout pass for the main Settings page. Earlier modules
 -- add controls in layers; this pass places every main-page control from current
 -- state so collapsing/deselecting one section cannot leave stale coordinates.
+-- Nothing below Activities is positioned by incremental "shift down" math here:
+-- one top-to-bottom cursor owns the complete page through the footer.
 
 local START_Y = -104
 local ROW_SPACING = 44
@@ -52,6 +54,22 @@ local function LayoutChildRow(controls, keys, xPositions, y, visible)
 	end
 end
 
+local function FindSettingsFooter(addonObject)
+	if addonObject.settingsFooter then return addonObject.settingsFooter end
+	local panel = addonObject.settingsPanel
+	if not panel or type(panel.GetRegions) ~= "function" then return nil end
+	for _, region in ipairs({ panel:GetRegions() }) do
+		if region and type(region.GetText) == "function" then
+			local text = region:GetText()
+			if type(text) == "string" and text:match("^Version%s") and text:find("Author:", 1, true) then
+				addonObject.settingsFooter = region
+				return region
+			end
+		end
+	end
+	return nil
+end
+
 local function ApplyFinalSettingsLayout(addonObject)
 	local controls = addonObject.settingsControls
 	local panel = addonObject.settingsPanel
@@ -87,42 +105,47 @@ local function ApplyFinalSettingsLayout(addonObject)
 	y = y - ROW_SPACING - SECTION_SPACING
 
 	SetFontPoint(addonObject.safetyHeader, 18, y, 560)
-	SetPoint(controls.confirmBonusRoll, 24, y - 34)
-	SetPoint(addonObject.previewButton, 24, y - 72)
-	y = y - 120
+	y = y - 34
+	SetPoint(controls.confirmBonusRoll, 24, y)
+	y = y - 38
+	SetPoint(addonObject.previewButton, 24, y)
+	y = y - 48
 
 	SetFontPoint(addonObject.interfaceHeader, 18, y, 560)
-	SetPoint(controls.showMinimapButton, 24, y - 34)
+	y = y - 34
+	SetPoint(controls.showMinimapButton, 24, y)
+	y = y - ROW_SPACING
 
-	-- The sound controls are added by UXSettings/UXPolish. Place them explicitly
-	-- instead of incrementally shifting whatever coordinates a previous pass left.
+	-- UXSettings / UXPolish create these controls, but this module owns their
+	-- final absolute coordinates. This prevents their older shift-based reflows
+	-- from accumulating when an expandable activity section changes height.
 	local soundCheckbox = addonObject.suppressionSoundControl
 	if soundCheckbox then
-		if type(soundCheckbox.ClearAllPoints) == "function" then soundCheckbox:ClearAllPoints() end
-		soundCheckbox:SetPoint("TOPLEFT", controls.showMinimapButton, "BOTTOMLEFT", 0, -10)
-	end
-	local soundLabel = addonObject.suppressionSoundSelectLabel
-	if soundLabel and soundCheckbox then
-		if type(soundLabel.ClearAllPoints) == "function" then soundLabel:ClearAllPoints() end
-		soundLabel:SetPoint("TOPLEFT", soundCheckbox, "BOTTOMLEFT", 2, -8)
-	end
-	local soundSelect = addonObject.suppressionSoundSelectButton
-	if soundSelect and soundLabel then
-		if type(soundSelect.ClearAllPoints) == "function" then soundSelect:ClearAllPoints() end
-		soundSelect:SetPoint("TOPLEFT", soundLabel, "BOTTOMLEFT", -2, -5)
-	end
-	local soundTest = addonObject.suppressionSoundTestButton
-	if soundTest and soundSelect then
-		if type(soundTest.ClearAllPoints) == "function" then soundTest:ClearAllPoints() end
-		soundTest:SetPoint("LEFT", soundSelect, "RIGHT", 10, 0)
+		SetPoint(soundCheckbox, 24, y)
+		y = y - 34
 	end
 
-	-- Match the space historically reserved by UXSettings + UXPolish, but derive
-	-- it from this layout pass so repeated refreshes/collapses cannot accumulate.
-	local notificationHeaderY = y - 196
-	SetFontPoint(addonObject.notificationHeader, 18, notificationHeaderY, 560)
-	SetFontPoint(addonObject.notificationHelp, 24, notificationHeaderY - 28, 550)
-	local notificationY = notificationHeaderY - 82
+	local soundLabel = addonObject.suppressionSoundSelectLabel
+	local soundSelect = addonObject.suppressionSoundSelectButton
+	local soundTest = addonObject.suppressionSoundTestButton
+	if soundLabel and soundSelect then
+		SetFontPoint(soundLabel, 26, y, 540)
+		y = y - 24
+		SetPoint(soundSelect, 24, y)
+		if soundTest then
+			if type(soundTest.ClearAllPoints) == "function" then soundTest:ClearAllPoints() end
+			soundTest:SetPoint("LEFT", soundSelect, "RIGHT", 10, 0)
+		end
+		y = y - 42
+	end
+
+	y = y - 14
+	SetFontPoint(addonObject.notificationHeader, 18, y, 560)
+	y = y - 28
+	SetFontPoint(addonObject.notificationHelp, 24, y, 550)
+	y = y - 54
+
+	local notificationY = y
 	for index, definition in ipairs(addonObject.chatDestinationDefinitions or {}) do
 		local column = ((index - 1) % 3) + 1
 		local row = math.floor((index - 1) / 3)
@@ -131,17 +154,46 @@ local function ApplyFinalSettingsLayout(addonObject)
 	end
 
 	local rows = math.ceil(#(addonObject.chatDestinationDefinitions or {}) / 3)
-	local contentHeight = math.max(760, math.abs(notificationY - rows * NOTIFICATION_ROW_SPACING - 110))
+	if rows > 0 then
+		y = notificationY - ((rows - 1) * NOTIFICATION_ROW_SPACING) - 54
+	else
+		y = notificationY - 18
+	end
+
+	-- The original footer is bottom-anchored. Once the panel becomes scrollable,
+	-- that can put it directly underneath dynamic controls. Make it part of the
+	-- normal document flow instead.
+	local footer = FindSettingsFooter(addonObject)
+	if footer then
+		SetFontPoint(footer, 18, y, 560)
+		y = y - 34
+	end
+
+	local contentHeight = math.max(760, math.abs(y) + 24)
 	if type(panel.SetHeight) == "function" then panel:SetHeight(contentHeight) end
 end
 
 addon.ApplyFinalSettingsLayout = ApplyFinalSettingsLayout
+
+local layoutScheduled = false
+local function ScheduleFinalSettingsLayout(addonObject)
+	if layoutScheduled then return end
+	if not C_Timer or type(C_Timer.After) ~= "function" then return end
+	layoutScheduled = true
+	C_Timer.After(0, function()
+		layoutScheduled = false
+		ApplyFinalSettingsLayout(addonObject)
+	end)
+end
 
 local previousRefreshSettingsUI = addon.RefreshSettingsUI
 if type(previousRefreshSettingsUI) == "function" then
 	addon.RefreshSettingsUI = function(self, ...)
 		local result = previousRefreshSettingsUI(self, ...)
 		ApplyFinalSettingsLayout(self)
+		-- Some legacy layout wrappers run from the same UI event. Reassert once at
+		-- the end of the frame so this module is unambiguously the final owner.
+		ScheduleFinalSettingsLayout(self)
 		return result
 	end
 end
@@ -158,7 +210,11 @@ local function HookExpansionControls(addonObject)
 			if previous then
 				control:SetScript("OnClick", function(...)
 					previous(...)
-					addonObject:RefreshSettingsUI()
+					-- Do not call RefreshSettingsUI here. Older refresh wrappers contain
+					-- incremental shifts; the click handler already updated all state we
+					-- need, so just lay out that state directly.
+					ApplyFinalSettingsLayout(addonObject)
+					ScheduleFinalSettingsLayout(addonObject)
 				end)
 			end
 			control.rollCurtainFinalLayoutHook = true
@@ -171,7 +227,15 @@ if type(previousRegisterSettings) == "function" then
 	addon.RegisterSettings = function(self, ...)
 		local result = previousRegisterSettings(self, ...)
 		HookExpansionControls(self)
-		self:RefreshSettingsUI()
+		ApplyFinalSettingsLayout(self)
+		ScheduleFinalSettingsLayout(self)
+		if self.settingsPanel and type(self.settingsPanel.HookScript) == "function" and not self.finalSettingsOnShowHooked then
+			self.finalSettingsOnShowHooked = true
+			self.settingsPanel:HookScript("OnShow", function()
+				ApplyFinalSettingsLayout(self)
+				ScheduleFinalSettingsLayout(self)
+			end)
+		end
 		return result
 	end
 end
