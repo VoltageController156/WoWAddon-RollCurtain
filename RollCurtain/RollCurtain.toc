@@ -4,7 +4,7 @@
 ## Author: VoltageController156
 ## Version: 0.0.10
 ## X-Release-Channel: development
-## X-Beta-Build: 4
+## X-Beta-Build: 5
 ## SavedVariables: RollCurtainDB
 ## LoadSavedVariablesFirst: 1
 ## X-Category: Loot
@@ -30,6 +30,7 @@ ContentPriority.lua
 SettingsFinalLayout.lua
 CharacterIdentity.lua
 Debug.lua
+DecisionTest.lua
 DebugMinimap.lua
 DebugRecoveryPreview.lua
 FirstRun.lua
