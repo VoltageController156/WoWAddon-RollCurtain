@@ -108,25 +108,36 @@ function addon:GetCurrentContentType()
 end
 
 -- GetInstanceInfo() can temporarily report "scenario" for surrounding/phased
--- content even when the bonus-roll prompt itself belongs to a real dungeon or
--- raid. Blizzard stores the prompt's difficultyID on BonusRollFrame, and
--- GetDifficultyInfo() tells us whether that difficulty belongs to a party or
--- raid. Use that prompt-local metadata to keep the broad "Other scenarios"
--- setting from swallowing dungeon/raid rolls.
-local function GetPromptInstanceContentType(frame)
-	frame = frame or BonusRollFrame
-	if not frame or frame.state ~= "prompt" then return nil end
-	local difficultyID = frame.difficultyID
+-- content even when the bonus-roll prompt itself belongs to a real dungeon,
+-- raid, or Lair. Keep prompt metadata parsing separate so the exact same
+-- resolver can be exercised safely by development diagnostics without creating
+-- or mutating Blizzard's BonusRollFrame.
+local function GetPromptInstanceContentType(addonObject, prompt)
+	if not prompt then return nil end
+	if prompt.state ~= nil and prompt.state ~= "prompt" then return nil end
+
+	local difficultyID = prompt.difficultyID
 	if type(difficultyID) ~= "number" or difficultyID <= 0 or type(GetDifficultyInfo) ~= "function" then return nil end
 
-	local ok, _, groupType = pcall(GetDifficultyInfo, difficultyID)
+	local ok, difficultyName, groupType = pcall(GetDifficultyInfo, difficultyID)
 	if not ok then return nil end
+
+	local instanceID = prompt.instanceID
+	if addonObject.lairInstanceIDs and addonObject.lairInstanceIDs[instanceID] then
+		return ClassifyLairDifficulty(difficultyID, difficultyName)
+	end
+
 	if groupType == "party" then
 		return DUNGEON_DIFFICULTY_CONTENT_TYPES[difficultyID] or "dungeons"
 	elseif groupType == "raid" then
 		return RAID_DIFFICULTY_CONTENT_TYPES[difficultyID] or "raids"
 	end
 	return nil
+end
+
+function addon:ResolvePromptContentType(contentType, prompt)
+	if contentType ~= "scenarios" then return contentType end
+	return GetPromptInstanceContentType(self, prompt) or contentType
 end
 
 function addon:ShouldHideContentType(contentType)
@@ -142,18 +153,17 @@ function addon:ShouldHideContentType(contentType)
 	return self:GetSetting(contentType) == true
 end
 
+-- Central decision helper used by both real bonus-roll prompts and the
+-- development simulator. Tests can inject prompt metadata here without ever
+-- creating, showing, closing, or spending a real bonus roll.
+function addon:ShouldHidePromptDecision(contentType, prompt)
+	local resolvedContentType = self:ResolvePromptContentType(contentType, prompt)
+	return self:ShouldHideContentType(resolvedContentType), resolvedContentType
+end
+
 function addon:ShouldHideCurrentPrompt(frame)
 	local contentType = self:GetCurrentContentType()
-
-	-- "Other scenarios" is intentionally a last-resort category. If the active
-	-- bonus-roll prompt proves that it belongs to a dungeon or raid difficulty,
-	-- use that specific setting instead of the broad scenario checkbox.
-	if contentType == "scenarios" then
-		local promptContentType = GetPromptInstanceContentType(frame)
-		if promptContentType then contentType = promptContentType end
-	end
-
-	return self:ShouldHideContentType(contentType), contentType
+	return self:ShouldHidePromptDecision(contentType, frame or BonusRollFrame)
 end
 
 -- If a saved/reconstructed hidden roll belongs to content the user no longer
