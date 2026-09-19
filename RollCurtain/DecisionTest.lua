@@ -1,8 +1,16 @@
 local addonName, addon = ...
 
--- Safe decision test for beta/development builds. This never creates, restores,
--- closes, or otherwise touches BonusRollFrame; it only evaluates the same
--- content classification and suppression decision used for a real prompt.
+-- Safe decision tests for beta/development builds. These never create, restore,
+-- close, or otherwise touch BonusRollFrame; they only evaluate the same content
+-- classification and suppression helpers used for a real prompt.
+
+local SIMULATIONS = {
+	["raid heroic"] = { label = "Heroic Raid", difficultyID = 15, difficultyName = "Heroic" },
+	["heroic raid"] = { label = "Heroic Raid", difficultyID = 15, difficultyName = "Heroic" },
+	["dungeon heroic"] = { label = "Heroic Dungeon", difficultyID = 2, difficultyName = "Heroic" },
+	["heroic dungeon"] = { label = "Heroic Dungeon", difficultyID = 2, difficultyName = "Heroic" },
+	["scenario"] = { label = "Scenario", difficultyID = nil, difficultyName = "Scenario" },
+}
 
 local function GetContentSummary(addonObject)
 	local contentType = type(addonObject.GetCurrentContentType) == "function" and addonObject:GetCurrentContentType() or "unknown"
@@ -67,8 +75,53 @@ function addon:GetCurrentDecisionTest()
 	}
 end
 
+function addon:GetSimulatedDecisionTest(simulationName)
+	local key = tostring(simulationName or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+	local definition = SIMULATIONS[key]
+	if not definition then
+		return nil, "Usage: /rc debug simulate raid heroic|dungeon heroic|scenario"
+	end
+	if type(self.ShouldHidePromptDecision) ~= "function" then
+		return nil, "Prompt decision helper is unavailable."
+	end
+
+	-- Reproduce the bug condition deliberately: the player's surrounding context
+	-- is classified as Other scenarios, while the prompt may identify itself as
+	-- a raid/dungeon via its own difficulty metadata.
+	local prompt = {
+		state = "prompt",
+		difficultyID = definition.difficultyID,
+	}
+	local shouldHide, contentType = self:ShouldHidePromptDecision("scenarios", prompt)
+	contentType = contentType or "scenarios"
+	local label = self.contentLabels and self.contentLabels[contentType] or contentType
+
+	return {
+		simulated = true,
+		simulationLabel = definition.label,
+		sourceContentType = "scenarios",
+		contentType = contentType,
+		label = label,
+		instanceType = "scenario (simulated)",
+		difficultyID = definition.difficultyID and tostring(definition.difficultyID) or "none",
+		difficultyName = definition.difficultyName,
+		shouldHide = shouldHide == true,
+		rule = GetRuleSummary(self, contentType),
+	}
+end
+
 function addon:FormatCurrentDecisionTest(result)
 	result = result or self:GetCurrentDecisionTest()
+	if result.simulated then
+		return string.format(
+			"Simulation: Other scenarios context + %s prompt\nResolved content: %s (%s)\nRule: %s\nDecision: %s bonus roll prompt",
+			tostring(result.simulationLabel),
+			tostring(result.label),
+			tostring(result.contentType),
+			tostring(result.rule),
+			result.shouldHide and "SUPPRESS" or "SHOW"
+		)
+	end
 	return string.format(
 		"Current content: %s (%s)\nInstance: %s | Difficulty: %s (%s)\nRule: %s\nDecision: %s bonus roll prompt",
 		tostring(result.label),
@@ -81,6 +134,13 @@ function addon:FormatCurrentDecisionTest(result)
 	)
 end
 
+local function PrintDecisionText(prefix, text)
+	if not DEFAULT_CHAT_FRAME or type(DEFAULT_CHAT_FRAME.AddMessage) ~= "function" then return end
+	for line in text:gmatch("[^\n]+") do
+		DEFAULT_CHAT_FRAME:AddMessage(prefix .. line)
+	end
+end
+
 function addon:RunCurrentDecisionTest(printResult)
 	local result = self:GetCurrentDecisionTest()
 	local text = self:FormatCurrentDecisionTest(result)
@@ -89,13 +149,28 @@ function addon:RunCurrentDecisionTest(printResult)
 		self.debugDecisionResult:SetText(text)
 	end
 
-	if printResult ~= false and DEFAULT_CHAT_FRAME and type(DEFAULT_CHAT_FRAME.AddMessage) == "function" then
-		local prefix = "|cff9d9d9dRoll Curtain Decision Test:|r "
-		for line in text:gmatch("[^\n]+") do
-			DEFAULT_CHAT_FRAME:AddMessage(prefix .. line)
+	if printResult ~= false then
+		PrintDecisionText("|cff9d9d9dRoll Curtain Decision Test:|r ", text)
+	end
+	return result
+end
+
+function addon:RunSimulatedDecisionTest(simulationName, printResult)
+	local result, errorMessage = self:GetSimulatedDecisionTest(simulationName)
+	if not result then
+		if printResult ~= false and DEFAULT_CHAT_FRAME and type(DEFAULT_CHAT_FRAME.AddMessage) == "function" then
+			DEFAULT_CHAT_FRAME:AddMessage("|cff9d9d9dRoll Curtain Simulation:|r " .. tostring(errorMessage))
 		end
+		return nil, errorMessage
 	end
 
+	local text = self:FormatCurrentDecisionTest(result)
+	if self.debugDecisionResult and type(self.debugDecisionResult.SetText) == "function" then
+		self.debugDecisionResult:SetText(text)
+	end
+	if printResult ~= false then
+		PrintDecisionText("|cff9d9d9dRoll Curtain Simulation:|r ", text)
+	end
 	return result
 end
 
@@ -123,9 +198,37 @@ local function EnsureDecisionTestControls(addonObject)
 	result:SetJustifyV("TOP")
 	result:SetText("Current decision test has not been run yet.")
 
+	local simulationHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	simulationHeader:SetPoint("TOPLEFT", 24, -454)
+	simulationHeader:SetText("Simulate an Other scenarios prompt")
+
+	local simulationButtons = {}
+	local buttonDefinitions = {
+		{ x = 24, label = "Heroic Raid", command = "raid heroic" },
+		{ x = 206, label = "Heroic Dungeon", command = "dungeon heroic" },
+		{ x = 388, label = "Scenario", command = "scenario" },
+	}
+	for _, definition in ipairs(buttonDefinitions) do
+		local simulationButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+		simulationButton:SetSize(166, 26)
+		simulationButton:SetPoint("TOPLEFT", definition.x, -482)
+		simulationButton:SetText(definition.label)
+		simulationButton:SetScript("OnClick", function() addon:RunSimulatedDecisionTest(definition.command, true) end)
+		table.insert(simulationButtons, simulationButton)
+	end
+
+	local simulationHint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	simulationHint:SetPoint("TOPLEFT", 24, -518)
+	simulationHint:SetWidth(560)
+	simulationHint:SetJustifyH("LEFT")
+	simulationHint:SetText("Uses the same prompt resolver as a real bonus roll, with simulated metadata only. No reroll or Blizzard frame is required.")
+
 	addonObject.debugDecisionButton = button
 	addonObject.debugDecisionHint = hint
 	addonObject.debugDecisionResult = result
+	addonObject.debugSimulationHeader = simulationHeader
+	addonObject.debugSimulationButtons = simulationButtons
+	addonObject.debugSimulationHint = simulationHint
 end
 
 local previousRegisterSettings = addon.RegisterSettings
@@ -147,6 +250,16 @@ if type(previousSlashHandler) == "function" then
 				addon:RunCurrentDecisionTest(true)
 			elseif DEFAULT_CHAT_FRAME and type(DEFAULT_CHAT_FRAME.AddMessage) == "function" then
 				DEFAULT_CHAT_FRAME:AddMessage("|cff9d9d9dRoll Curtain Decision Test:|r Available in beta/development builds.")
+			end
+			return
+		end
+
+		local simulation = command:match("^debug%s+simulate%s+(.+)$")
+		if simulation or command == "debug simulate" then
+			if type(addon.IsDevelopmentBuild) ~= "function" or addon:IsDevelopmentBuild() then
+				addon:RunSimulatedDecisionTest(simulation or "", true)
+			elseif DEFAULT_CHAT_FRAME and type(DEFAULT_CHAT_FRAME.AddMessage) == "function" then
+				DEFAULT_CHAT_FRAME:AddMessage("|cff9d9d9dRoll Curtain Simulation:|r Available in beta/development builds.")
 			end
 			return
 		end

@@ -51,7 +51,7 @@ function GetDifficultyInfo(id)
 	return nil, nil
 end
 
-BonusRollFrame = { state = "prompt", difficultyID = nil }
+BonusRollFrame = { state = "prompt", difficultyID = nil, sentinel = "real-frame" }
 
 C_QuestLog = { GetActivePreyQuest = function() return activePreyQuest end }
 C_DelvesUI = { HasActiveDelve = function() return activeDelve end }
@@ -135,11 +135,30 @@ shouldHide, contentType = addon:ShouldHideCurrentPrompt()
 assert(contentType == "scenarios")
 assert(shouldHide == true, "Other scenarios should still suppress genuine scenario content")
 
+-- The development simulator calls this same central helper with an injected
+-- prompt table. It must reproduce the decisions above without touching the
+-- live Blizzard frame.
+local liveFrame = BonusRollFrame
+local simulatedRaid = { state = "prompt", difficultyID = 15 }
+shouldHide, contentType = addon:ShouldHidePromptDecision("scenarios", simulatedRaid)
+assert(contentType == "raidHeroic" and shouldHide == false, "Simulated Heroic Raid must SHOW when its setting is off")
+assert(BonusRollFrame == liveFrame and BonusRollFrame.sentinel == "real-frame", "Simulation must not replace or mutate BonusRollFrame")
+
+local simulatedDungeon = { state = "prompt", difficultyID = 2 }
+shouldHide, contentType = addon:ShouldHidePromptDecision("scenarios", simulatedDungeon)
+assert(contentType == "dungeonHeroic" and shouldHide == false, "Simulated Heroic Dungeon must SHOW when its setting is off")
+
+local simulatedScenario = { state = "prompt" }
+shouldHide, contentType = addon:ShouldHidePromptDecision("scenarios", simulatedScenario)
+assert(contentType == "scenarios" and shouldHide == true, "Simulated genuine scenario must follow Other scenarios")
+
 -- If raid suppression is explicitly enabled for the prompt's raid difficulty,
--- the raid setting—not Other scenarios—controls the result.
+-- the raid setting—not Other scenarios—controls both live and simulated results.
 addon.settings.raidHeroic = true
 BonusRollFrame.difficultyID = 15
 shouldHide, contentType = addon:ShouldHideCurrentPrompt()
+assert(contentType == "raidHeroic" and shouldHide == true)
+shouldHide, contentType = addon:ShouldHidePromptDecision("scenarios", simulatedRaid)
 assert(contentType == "raidHeroic" and shouldHide == true)
 addon.settings.raidHeroic = false
 

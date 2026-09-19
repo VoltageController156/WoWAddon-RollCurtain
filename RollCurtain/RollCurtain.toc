@@ -4,7 +4,7 @@
 ## Author: VoltageController156
 ## Version: 0.0.11
 ## X-Release-Channel: development
-## X-Beta-Build: 1
+## X-Beta-Build: 2
 ## SavedVariables: RollCurtainDB
 ## LoadSavedVariablesFirst: 1
 ## X-Category: Loot
