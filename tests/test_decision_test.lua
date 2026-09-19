@@ -1,11 +1,17 @@
 local addon = {
 	contentLabels = {
 		raidHeroic = "Heroic raids",
+		dungeonHeroic = "Heroic dungeons",
+		scenarios = "Other scenarios",
 	},
 	settings = {
+		dungeonsEnabled = true,
+		dungeonHeroic = false,
 		raidsEnabled = true,
 		raidHeroic = false,
+		scenarios = true,
 	},
+	lairInstanceIDs = {},
 }
 
 local messages = {}
@@ -16,19 +22,17 @@ DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) table.insert(messages, 
 SlashCmdList = { ROLLCURTAIN = function(input) forwardedSlashInput = input end }
 
 function GetInstanceInfo()
-	return "Test Heroic Raid", "raid", 15, "Heroic"
+	return "Test Heroic Raid", "raid", 15, "Heroic", 0, false, false, 3004
 end
 
-function addon:GetCurrentContentType()
-	return "raidHeroic"
+function GetDifficultyInfo(id)
+	if id == 15 then return "Heroic", "raid" end
+	if id == 2 then return "Heroic", "party" end
+	return "Scenario", nil
 end
 
 function addon:GetSetting(key)
 	return self.settings[key]
-end
-
-function addon:ShouldHideCurrentPrompt()
-	return self.settings.raidsEnabled == true and self.settings.raidHeroic == true, "raidHeroic"
 end
 
 function addon:IsDevelopmentBuild()
@@ -62,10 +66,14 @@ function addon:RegisterSettings()
 	return true
 end
 
+-- Load the production resolver before the debug diagnostics so the simulator
+-- exercises exactly the same decision helper as a real bonus-roll prompt.
+assert(loadfile("RollCurtain/ContentPriority.lua"))("RollCurtain", addon)
 assert(loadfile("RollCurtain/DecisionTest.lua"))("RollCurtain", addon)
 assert(addon:RegisterSettings() == true)
 assert(addon.debugDecisionButton, "Development Debug page should get a decision-test button")
 assert(addon.debugDecisionResult, "Decision-test result text should be created")
+assert(addon.debugSimulationButtons and #addon.debugSimulationButtons == 3, "Debug page should expose three safe simulation buttons")
 
 -- Heroic Raid is detected, but Heroic suppression is disabled: fail open / SHOW.
 local result = addon:RunCurrentDecisionTest(false)
@@ -79,18 +87,44 @@ assert(result.rule:find("Raids=on", 1, true))
 assert(result.rule:find("raidHeroic=off", 1, true))
 assert(addon.debugDecisionResult.text:find("Decision: SHOW bonus roll prompt", 1, true))
 
--- Toggling Heroic on should change only the decision, without touching Blizzard's frame.
+-- Simulate the exact Other scenarios bug without an available bonus roll.
+result = addon:RunSimulatedDecisionTest("raid heroic", false)
+assert(result.simulated == true)
+assert(result.sourceContentType == "scenarios")
+assert(result.contentType == "raidHeroic")
+assert(result.shouldHide == false, "Other scenarios ON must not suppress a simulated unchecked Heroic Raid")
+assert(addon.debugDecisionResult.text:find("Other scenarios context + Heroic Raid prompt", 1, true))
+assert(addon.debugDecisionResult.text:find("Decision: SHOW bonus roll prompt", 1, true))
+
+result = addon:RunSimulatedDecisionTest("dungeon heroic", false)
+assert(result.contentType == "dungeonHeroic")
+assert(result.shouldHide == false, "Other scenarios ON must not suppress a simulated unchecked Heroic Dungeon")
+
+result = addon:RunSimulatedDecisionTest("scenario", false)
+assert(result.contentType == "scenarios")
+assert(result.shouldHide == true, "A simulated genuine scenario must still follow Other scenarios")
+
+-- Toggling Heroic Raid on changes both live and simulated decisions, without
+-- touching Blizzard's frame.
 addon.settings.raidHeroic = true
 result = addon:RunCurrentDecisionTest(false)
 assert(result.shouldHide == true, "Enabled Heroic Raid must produce a SUPPRESS decision")
-assert(addon.debugDecisionResult.text:find("Decision: SUPPRESS bonus roll prompt", 1, true))
-assert(BonusRollFrame == originalBonusRollFrame and BonusRollFrame.sentinel == "untouched", "Decision test must not touch BonusRollFrame")
+result = addon:RunSimulatedDecisionTest("raid heroic", false)
+assert(result.shouldHide == true, "Enabled Heroic Raid must suppress the simulated raid prompt")
+assert(BonusRollFrame == originalBonusRollFrame and BonusRollFrame.sentinel == "untouched", "Decision tests must not touch BonusRollFrame")
 
--- Slash command prints the decision; unrelated commands still pass through.
+-- Slash commands print both real and simulated decisions; unrelated commands
+-- still pass through the existing handler.
 local beforeMessages = #messages
 SlashCmdList.ROLLCURTAIN("debug decision")
 assert(#messages > beforeMessages, "/rc debug decision should print the current decision")
 assert(messages[#messages]:find("Decision: SUPPRESS bonus roll prompt", 1, true))
+
+beforeMessages = #messages
+SlashCmdList.ROLLCURTAIN("debug simulate raid heroic")
+assert(#messages > beforeMessages, "/rc debug simulate raid heroic should print the simulation")
+assert(messages[#messages]:find("Decision: SUPPRESS bonus roll prompt", 1, true))
+
 SlashCmdList.ROLLCURTAIN("status")
 assert(forwardedSlashInput == "status", "Non-decision slash commands should continue through the existing handler")
 
