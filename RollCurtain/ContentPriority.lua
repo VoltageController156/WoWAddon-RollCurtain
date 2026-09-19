@@ -107,6 +107,28 @@ function addon:GetCurrentContentType()
 	return "unknown"
 end
 
+-- GetInstanceInfo() can temporarily report "scenario" for surrounding/phased
+-- content even when the bonus-roll prompt itself belongs to a real dungeon or
+-- raid. Blizzard stores the prompt's difficultyID on BonusRollFrame, and
+-- GetDifficultyInfo() tells us whether that difficulty belongs to a party or
+-- raid. Use that prompt-local metadata to keep the broad "Other scenarios"
+-- setting from swallowing dungeon/raid rolls.
+local function GetPromptInstanceContentType(frame)
+	frame = frame or BonusRollFrame
+	if not frame or frame.state ~= "prompt" then return nil end
+	local difficultyID = frame.difficultyID
+	if type(difficultyID) ~= "number" or difficultyID <= 0 or type(GetDifficultyInfo) ~= "function" then return nil end
+
+	local ok, _, groupType = pcall(GetDifficultyInfo, difficultyID)
+	if not ok then return nil end
+	if groupType == "party" then
+		return DUNGEON_DIFFICULTY_CONTENT_TYPES[difficultyID] or "dungeons"
+	elseif groupType == "raid" then
+		return RAID_DIFFICULTY_CONTENT_TYPES[difficultyID] or "raids"
+	end
+	return nil
+end
+
 function addon:ShouldHideContentType(contentType)
 	if DUNGEON_SETTING_KEYS[contentType] then
 		return self:GetSetting("dungeonsEnabled") == true and self:GetSetting(contentType) == true
@@ -120,8 +142,17 @@ function addon:ShouldHideContentType(contentType)
 	return self:GetSetting(contentType) == true
 end
 
-function addon:ShouldHideCurrentPrompt()
+function addon:ShouldHideCurrentPrompt(frame)
 	local contentType = self:GetCurrentContentType()
+
+	-- "Other scenarios" is intentionally a last-resort category. If the active
+	-- bonus-roll prompt proves that it belongs to a dungeon or raid difficulty,
+	-- use that specific setting instead of the broad scenario checkbox.
+	if contentType == "scenarios" then
+		local promptContentType = GetPromptInstanceContentType(frame)
+		if promptContentType then contentType = promptContentType end
+	end
+
 	return self:ShouldHideContentType(contentType), contentType
 end
 
